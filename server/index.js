@@ -1,4 +1,5 @@
 // server/index.js
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env'), quiet: true });
 const express = require('express');
 const http = require('http');
 const ws = require('ws');

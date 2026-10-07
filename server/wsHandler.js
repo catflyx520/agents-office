@@ -336,7 +336,7 @@ function handleMessage(ws, wss, raw, agentsDir) {
       const provider = msg.provider === 'codex' ? 'codex' : 'claude';
       let cmd;
       if (provider === 'codex') {
-        cmd = `"/Applications/Codex.app/Contents/Resources/codex" logout`;
+        cmd = `"${process.env.CODEX_BIN || 'codex'}" logout`;
       } else {
         const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
         cmd = `"${CLAUDE_BIN}" logout`;

@@ -141,7 +141,7 @@ function spawnAgent(agentConfig, message, onChunk) {
     let bin, args;
 
     if (activeProvider === 'codex') {
-      bin = '/Applications/Codex.app/Contents/Resources/codex';
+      bin = process.env.CODEX_BIN || 'codex';
       args = [
         'exec',
         '--json',
@@ -174,8 +174,11 @@ function spawnAgent(agentConfig, message, onChunk) {
 
     log(`▶ 启动 ${activeProvider}  cwd=${agentConfig.workDir}  resume=${resumeId || '无'}  msg="${String(message).slice(0, 60).replace(/\n/g, ' ')}..."`);
 
-    const apiKey = getConfig('apiKey');
+    const apiKey = process.env.ANTHROPIC_API_KEY || getConfig('apiKey');
     const spawnEnv = { ...process.env };
+    // Blank template entries must not interfere with existing CLI logins.
+    if (!spawnEnv.CODEX_API_KEY) delete spawnEnv.CODEX_API_KEY;
+    if (!spawnEnv.ANTHROPIC_API_KEY) delete spawnEnv.ANTHROPIC_API_KEY;
     if (apiKey && activeProvider === 'claude') {
       spawnEnv.ANTHROPIC_API_KEY = apiKey;
     }

@@ -97,6 +97,27 @@ MIT
 
 # Agents Office · 中文
 
+## 本地 API Key 配置
+
+安装所选服务商的 CLI 后，在项目根目录将 `.env.example` 复制为 `.env`（PowerShell：`Copy-Item .env.example .env`），填写需要使用的 key：
+
+```dotenv
+ANTHROPIC_API_KEY=
+CODEX_API_KEY=
+CLAUDE_BIN=claude
+CODEX_BIN=codex
+PORT=3000
+```
+
+- Claude API key 填在 `ANTHROPIC_API_KEY`；OpenAI API key 填在 `CODEX_API_KEY`，用于本项目的 `codex exec` 调用。
+- 已通过 CLI 账户登录时，可以留空对应 key。网页中的登录状态显示 CLI 账户状态，不用于验证这里填写的 API key。
+- 执行 `npm ci` 和 `npm start`，打开 http://localhost:3000，在「模型与登录」选择服务商。修改 `.env` 后重启服务。
+- 找不到 CLI 时，把 `CLAUDE_BIN` / `CODEX_BIN` 改成可执行文件完整路径；带空格的路径加双引号。Windows 若命令只有 `.cmd` 启动器，需指定实际可执行文件或在 WSL 中运行。
+- 系统环境变量优先于 `.env`；Claude 环境变量 key 优先于旧的 `~/.virtual-office/config.json` 中的 `apiKey`。
+- `.env` 和 `.env.*` 已被 Git 忽略，仅提交不含密钥的 `.env.example`。密钥只供本地服务使用，不要放在 `client/` 下。
+
+Codex key 配置依据：[OpenAI 非交互模式文档](https://learn.chatgpt.com/docs/non-interactive-mode)。
+
 > **小办公室** — 一个 2D 像素风虚拟办公室，里面的每个 NPC 都是一个**真实的 Claude Code agent**。
 
 你操控一个小人在办公室里走动，走到哪位"同事"面前就能和 TA 对话。跟 **PM** 说一句需求，它会拆解任务、走到对应同事的工位把活儿派下去——背后是真实的 `claude` CLI 子进程在真实的项目仓库里读代码、改文件、跑命令。
