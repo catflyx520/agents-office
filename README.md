@@ -30,12 +30,39 @@ Not a chat toy: every delegation you watch in the game is actual multi-agent par
 
 ## 🚀 Quick start
 
+Install Node.js and the CLI for the provider you want to use: Claude Code (`claude`) or Codex (`codex`). Node.js 24 is the runtime used for the repository's local checks.
+
 ```bash
-npm install
-npm start          # http://localhost:3000
+git clone https://github.com/catflyx520/agents-office.git
+cd agents-office
+npm ci
 ```
 
-Requires [Claude Code CLI](https://claude.com/claude-code) installed locally (the `claude` command).
+For API key authentication, copy `.env.example` to `.env` in the project root:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+On macOS/Linux, use `cp .env.example .env`. Fill in only the key you need:
+
+```dotenv
+ANTHROPIC_API_KEY=
+CODEX_API_KEY=
+CLAUDE_BIN=claude
+CODEX_BIN=codex
+PORT=3000
+```
+
+`ANTHROPIC_API_KEY` is your Claude API key; `CODEX_API_KEY` is your OpenAI API key for `codex exec`. If the selected CLI already has an account login, you can leave its key blank and use that login instead. Both providers' CLIs must be installed separately from this project's npm dependencies.
+
+Run `npm start`, open http://localhost:3000, and select Claude or Codex in **模型与登录**. Its login indicator reports CLI account status, not API key validity. Restart the server after editing `.env`.
+
+Before assigning work, update each agent's `workDir` to an existing project directory on your machine, including the PM when using Codex. Agent files are created on first start under `~/.virtual-office/agents/` (`$HOME\.virtual-office\agents` in PowerShell). Default frontend/backend/mobile paths are examples; Codex expects a Git repository.
+
+Existing terminal environment variables take precedence over `.env`. For Claude, an environment key also takes precedence over the legacy `apiKey` saved in `~/.virtual-office/config.json`. `.env` and `.env.*` are ignored by Git; only the blank `.env.example` is committed. Never put API keys in `client/`.
+
+If the CLI cannot be found, set `CLAUDE_BIN` or `CODEX_BIN` to its executable's full path, quoting paths with spaces. On Windows, a `.cmd` launcher alone may not work with the current process runner; use the actual executable or run the project and CLI together in WSL.
 
 ```bash
 npm test           # Jest unit tests
@@ -45,7 +72,10 @@ Environment variables:
 
 | Variable | Description |
 |---|---|
-| `CLAUDE_BIN` | Path to the `claude` binary (defaults to local install) |
+| `ANTHROPIC_API_KEY` | Optional Claude API key |
+| `CODEX_API_KEY` | Optional OpenAI API key for Codex execution |
+| `CLAUDE_BIN` | Executable name or path; defaults to `claude` |
+| `CODEX_BIN` | Executable name or path; defaults to `codex` |
 | `PORT` | Server port, default 3000 |
 | `TOKEN_REPORT_SEC` | Usage stats refresh interval in seconds, default 120 |
 
@@ -70,7 +100,7 @@ claude CLI (-p non-interactive + stream-json + --resume)
 
 Agent subprocesses run with `--dangerously-skip-permissions` (non-interactive mode has no approval prompt), which means **they can freely read/write files and run Bash inside their workDir repos**. Only point agents at directories you trust them with.
 
-Sensitive data (API key, uploads, session mappings, compaction log) lives in `~/.virtual-office/`, outside the repo.
+API keys can live in the ignored root `.env` file or your terminal environment. Legacy saved keys, uploads, session mappings, and compaction logs live in `~/.virtual-office/`, outside the repo. Claude skips permission prompts; Codex also bypasses approvals and sandboxing. Use this application locally with trusted projects.
 
 ## 📁 Project layout
 
@@ -146,12 +176,19 @@ Codex key 配置依据：[OpenAI 非交互模式文档](https://learn.chatgpt.co
 
 ## 🚀 快速开始
 
+准备好 Node.js（本仓库本地检查使用 Node.js 24），并单独安装要使用的 Claude Code 或 Codex CLI；`npm ci` 不会安装这两个 CLI。
+
 ```bash
-npm install
-npm start          # http://localhost:3000
+git clone https://github.com/catflyx520/agents-office.git
+cd agents-office
+npm ci
 ```
 
-要求：本机安装了 [Claude Code CLI](https://claude.com/claude-code)（`claude` 命令可用）。
+使用 API key 时，按上面的「本地 API Key 配置」复制模板并填写 `.env`；macOS/Linux 的复制命令是 `cp .env.example .env`。已有 CLI 账户登录时可跳过 key 配置。
+
+执行 `npm start` 后打开 http://localhost:3000，在「模型与登录」中选择服务商。
+
+首次启动会在用户目录的 `~/.virtual-office/agents/`（PowerShell：`$HOME\.virtual-office\agents`）创建 agent 文件。分派任务前，将每个 agent 的 `workDir` 改成自己机器上存在的项目目录。默认的 frontend/backend/mobile 路径只是示例；使用 Codex 时应指向 Git 仓库，PM 的工作目录也要配置。
 
 ```bash
 npm test           # Jest 单元测试
@@ -161,7 +198,10 @@ npm test           # Jest 单元测试
 
 | 变量 | 说明 |
 |---|---|
-| `CLAUDE_BIN` | `claude` 可执行文件路径（默认取本地安装） |
+| `ANTHROPIC_API_KEY` | 可选，Claude API key |
+| `CODEX_API_KEY` | 可选，用于 Codex 执行的 OpenAI API key |
+| `CLAUDE_BIN` | 可执行文件名或路径，默认 `claude` |
+| `CODEX_BIN` | 可执行文件名或路径，默认 `codex` |
 | `PORT` | 服务端口，默认 3000 |
 | `TOKEN_REPORT_SEC` | 用量统计刷新间隔（秒），默认 120 |
 
@@ -186,7 +226,7 @@ claude CLI（-p 非交互 + stream-json + --resume 续会话）
 
 Agent 子进程以 `--dangerously-skip-permissions` 运行（非交互模式没有人工审批入口），**会在其 workDir 指向的真实仓库里执行任意读写和 Bash 命令**。只给你信得过的目录建 agent，别把 workDir 指向不想被改的地方。
 
-敏感数据（API key、上传文件、会话映射、压缩记录）都存在 `~/.virtual-office/`，不在仓库内。
+API key 可保存在被 Git 忽略的根目录 `.env` 或终端环境变量中；旧版保存的 key、上传文件、会话映射和压缩记录位于仓库外的 `~/.virtual-office/`。Codex 后端也会跳过审批和沙箱，应在本机对可信项目使用。
 
 ## 📁 项目结构
 
