@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小办公室 · Virtual Office</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='%23ff8c42' stroke='%235a4636' stroke-width='5'/%3E%3Cpolygon points='32,15 49,32 32,49 15,32' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
+  @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+  @keyframes caret{0%,100%{opacity:1;}50%{opacity:0;}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #og-chatscroll::-webkit-scrollbar{width:8px;}
+  #og-chatscroll::-webkit-scrollbar-thumb{background:#e9c79a;border-radius:8px;}
+  #og-team-box::-webkit-scrollbar,#og-edit-box::-webkit-scrollbar{width:8px;}
+  #og-team-box::-webkit-scrollbar-thumb,#og-edit-box::-webkit-scrollbar-thumb{background:#e9c79a;border-radius:8px;}
+  #og-console-body::-webkit-scrollbar{width:9px;}
+  #og-console-body::-webkit-scrollbar-thumb{background:#5a4636;border-radius:8px;}
+  #og-console-body::-webkit-scrollbar-track{background:#241c14;}
+
+  /* Markdown styling inside chat bubbles */
+  .og-bubble-user p, .og-bubble-bot p { margin: 0 0 8px 0; }
+  .og-bubble-user p:last-child, .og-bubble-bot p:last-child { margin-bottom: 0; }
+  
+  .og-bubble-user h1, .og-bubble-user h2, .og-bubble-user h3, .og-bubble-user h4, .og-bubble-user h5, .og-bubble-user h6,
+  .og-bubble-bot h1, .og-bubble-bot h2, .og-bubble-bot h3, .og-bubble-bot h4, .og-bubble-bot h5, .og-bubble-bot h6 {
+    margin: 12px 0 6px 0;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .og-bubble-user h1:first-child, .og-bubble-user h2:first-child, .og-bubble-user h3:first-child, .og-bubble-user h4:first-child, .og-bubble-user h5:first-child, .og-bubble-user h6:first-child,
+  .og-bubble-bot h1:first-child, .og-bubble-bot h2:first-child, .og-bubble-bot h3:first-child, .og-bubble-bot h4:first-child, .og-bubble-bot h5:first-child, .og-bubble-bot h6:first-child {
+    margin-top: 0;
+  }
+  
+  .og-bubble-user ul, .og-bubble-user ol, .og-bubble-bot ul, .og-bubble-bot ol { margin: 0 0 8px 0; padding-left: 20px; }
+  .og-bubble-user ul:last-child, .og-bubble-user ol:last-child, .og-bubble-bot ul:last-child, .og-bubble-bot ol:last-child { margin-bottom: 0; }
+  .og-bubble-user li, .og-bubble-bot li { margin-bottom: 4px; }
+  
+  .og-bubble-bot code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: rgba(90, 70, 54, 0.08);
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #d9694a;
+  }
+  .og-bubble-user code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #fff;
+  }
+  
+  .og-bubble-user pre, .og-bubble-bot pre {
+    background: #241c14;
+    color: #d8c4a0;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    padding: 10px;
+    border-radius: 8px;
+    overflow-x: auto;
+    max-width: 100%;
+    margin: 8px 0;
+    border: 2px solid #5a4636;
+    text-align: left;
+  }
+  .og-bubble-user pre code, .og-bubble-bot pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  /* Keyboard shortcut badges */
+  kbd {
+    display: inline-block;
+    padding: 2.5px 6px;
+    font-size: 10px;
+    font-family: inherit;
+    line-height: 1;
+    color: #5a4636;
+    background-color: #fff;
+    border: 2px solid #5a4636;
+    border-radius: 6px;
+    box-shadow: 0 2px 0 #5a4636;
+    margin: 0 2px;
+    font-weight: 700;
+  }
+
+  /* Slack-like Date Separator */
+  .og-date-separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 22px 0 14px 0;
+  }
+  .og-date-separator::before, .og-date-separator::after {
+    content: "";
+    flex: 1;
+    border-bottom: 2.5px solid #f0d9b8;
+    opacity: 0.7;
+  }
+  .og-date-separator::before {
+    margin-right: 12px;
+  }
+  .og-date-separator::after {
+    margin-left: 12px;
+  }
+  .og-date-pill {
+    background: #fff8ee;
+    border: 2.5px solid #5a4636;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #a8825c;
+    box-shadow: 1px 2px 0 #5a4636;
+  }
+
+  /* Message Time under bubble */
+  .og-message-time {
+    font-size: 9.5px;
+    color: #a8825c;
+    margin-top: 5px;
+    padding: 0 6px;
+    font-weight: 500;
+    opacity: 0.85;
+    align-self: flex-start; /* Always align to bottom-left of the message content bubble */
+  }
+
+  /* Session Separator */
+  .og-session-separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 14px 0 8px 0;
+  }
+  .og-session-separator::before, .og-session-separator::after {
+    content: "";
+    flex: 1;
+    border-bottom: 2px dashed #e9c79a;
+    opacity: 0.55;
+  }
+  .og-session-separator::before {
+    margin-right: 10px;
+  }
+  .og-session-separator::after {
+    margin-left: 10px;
+  }
+  .og-session-pill {
+    background: #fff8ee;
+    border: 2px solid #a8825c;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #a8825c;
+    box-shadow: 0 1px 0 #5a4636;
+  }
+</style>
+</head>
+<body>
+<div style="font-family:'Fredoka',sans-serif; position:relative; background:#fff3e2; color:#5a4636; height:100vh; min-height:660px; display:flex; flex-direction:column; overflow:hidden;">
+
+  <!-- ===== TOOLBAR ===== -->
+  <div style="height:60px; flex:none; display:flex; align-items:center; gap:13px; padding:0 18px; background:#fff8ee; border-bottom:3px solid #f0d9b8; z-index:30;">
+    <div id="og-office-sign" title="点击给办公室改名" style="display:flex; align-items:center; gap:9px; cursor:pointer; background:#fff8ee; border:2.5px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:5px 14px 5px 6px;">
+      <div style="width:32px; height:32px; border-radius:10px; background:#ff8c42; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; font-size:16px;">◆</div>
+      <div id="og-office-name" style="font-size:18px; font-weight:700; color:#5a4636;">小办公室</div>
+    </div>
+    <div style="flex:1;"></div>
+    <div style="display:flex; align-items:center; gap:7px; background:#fff; border:2.5px solid #5a4636; border-radius:13px; padding:6px 12px;">
+      <span style="font-size:13px; font-weight:600; color:#5a4636;">🗜️ 自动压缩</span>
+      <select id="og-autocompact" title="当某个同事当前会话的累计计费超过该值时，自动压缩成摘要并开新会话" style="font-family:'Fredoka',sans-serif; font-size:13px; font-weight:600; color:#5a4636; border:2px solid #5a4636; border-radius:8px; padding:3px 6px; background:#fde7c8; outline:none; cursor:pointer;">
+        <option value="0">关闭</option>
+        <option value="50">50k</option>
+        <option value="100">100k</option>
+        <option value="200">200k</option>
+        <option value="300">300k</option>
+        <option value="500">500k</option>
+      </select>
+      <span id="og-compact-log-btn" title="查看压缩记录" style="cursor:pointer; font-size:14px; line-height:1; padding:2px;">📜</span>
+    </div>
+    <div style="display:flex; background:#fde7c8; border:2.5px solid #5a4636; border-radius:13px; padding:3px;">
+      <div id="og-mode-auto" data-mode="auto" style="padding:6px 13px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;">⚡ 全自动</div>
+      <div id="og-mode-confirm" data-mode="confirm" style="padding:6px 13px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;">✋ 先确认</div>
+    </div>
+    <div id="og-login-btn" style="padding:8px 14px; border-radius:12px; background:#fff; border:2.5px solid #5a4636; font-size:13px; font-weight:600; color:#5a4636; cursor:pointer;">🔑 模型与登录</div>
+    <div id="og-team-btn" style="padding:8px 14px; border-radius:12px; background:#fff; border:2.5px solid #5a4636; font-size:13px; font-weight:600; color:#5a4636; cursor:pointer;">👥 团队</div>
+    <div id="og-upload-btn" style="padding:8px 14px; border-radius:12px; background:#5fb0b7; border:2.5px solid #5a4636; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">📎 上传</div>
+    <div id="og-console-btn" style="padding:8px 14px; border-radius:12px; background:#5a4636; border:2.5px solid #5a4636; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">📜 日志台</div>
+  </div>
+
+  <div style="flex:1; display:flex; min-height:0;">
+
+    <!-- ===== MAP ===== -->
+    <div id="og-map" style="flex:1; position:relative; overflow:hidden;">
+
+      <!-- BACK WALL（flex 横排：左侧主组[窗1·窗2·时钟·用量牌·操作牌] 与 门 用 space-between 分开，门在最右）-->
+      <!-- 墙 z-index:46；#og-agents/#og-player 在墙前(47/48)但 pointer-events:none，墙上牌子仍可点击 -->
+      <div style="position:absolute; left:0; right:0; top:0; height:190px; background:#fbe6cb; z-index:46;">
+        <div style="position:absolute; inset:0; background-image:linear-gradient(90deg,rgba(90,70,54,.06) 1px,transparent 1px); background-size:46px 46px; pointer-events:none;"></div>
+
+        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 18px; z-index:1;">
+          <!-- 左侧主组 -->
+          <div style="display:flex; align-items:center; gap:20px; min-width:0;">
+            <!-- 窗 1：天空（时段+太阳/月亮位置由 app.js 按真实时间驱动）-->
+            <div id="og-win1" style="position:relative; flex:none; width:138px; height:96px; border-radius:14px; background:linear-gradient(#bfe6ff,#eaf7ff); border:4px solid #5a4636; box-shadow:2px 3px 0 #5a4636; overflow:hidden;">
+              <div id="og-win1-stars" style="position:absolute; inset:0; display:none;">
+                <div style="position:absolute; left:20px; top:16px; width:3px; height:3px; border-radius:50%; background:#fff;"></div>
+                <div style="position:absolute; left:52px; top:30px; width:2px; height:2px; border-radius:50%; background:#fff; opacity:.8;"></div>
+                <div style="position:absolute; left:88px; top:12px; width:3px; height:3px; border-radius:50%; background:#fff;"></div>
+                <div style="position:absolute; left:112px; top:40px; width:2px; height:2px; border-radius:50%; background:#fff; opacity:.7;"></div>
+                <div style="position:absolute; left:34px; top:58px; width:2px; height:2px; border-radius:50%; background:#fff; opacity:.6;"></div>
+              </div>
+              <div id="og-win1-sun" style="position:absolute; left:97px; top:12px; width:26px; height:26px; border-radius:50%; background:#ffd36b;"></div>
+              <div id="og-win1-moonmask" style="position:absolute; display:none; width:22px; height:22px; border-radius:50%; background:#2b3a5e;"></div>
+              <div id="og-win1-c1" style="position:absolute; left:15px; top:55px; width:52px; height:15px; border-radius:8px; background:#fff; opacity:.92;"></div>
+              <div id="og-win1-c2" style="position:absolute; left:38px; top:43px; width:34px; height:13px; border-radius:7px; background:#fff; opacity:.85;"></div>
+            </div>
+            <!-- 窗 2：城市天际线（夜晚楼群变剪影并亮灯）-->
+            <div id="og-win2" style="position:relative; flex:none; width:138px; height:96px; border-radius:14px; background:linear-gradient(#bfe6ff,#eaf7ff); border:4px solid #5a4636; box-shadow:2px 3px 0 #5a4636; overflow:hidden;">
+              <div id="og-win2-stars" style="position:absolute; inset:0; display:none;">
+                <div style="position:absolute; left:26px; top:12px; width:3px; height:3px; border-radius:50%; background:#fff;"></div>
+                <div style="position:absolute; left:70px; top:22px; width:2px; height:2px; border-radius:50%; background:#fff; opacity:.8;"></div>
+                <div style="position:absolute; left:108px; top:10px; width:3px; height:3px; border-radius:50%; background:#fff;"></div>
+              </div>
+              <div id="og-win2-city" style="position:absolute; inset:0;">
+                <div style="position:absolute; left:0; right:0; bottom:0; height:34px; background:#a9cfe0;"></div>
+                <div style="position:absolute; left:15px; bottom:0; width:20px; height:31px; background:#8fb8cc;"></div>
+                <div style="position:absolute; left:44px; bottom:0; width:26px; height:49px; background:#9cc2d4;"></div>
+                <div style="position:absolute; left:79px; bottom:0; width:18px; height:28px; background:#8fb8cc;"></div>
+                <div style="position:absolute; left:105px; bottom:0; width:23px; height:38px; background:#9cc2d4;"></div>
+              </div>
+              <div id="og-win2-lights" style="position:absolute; inset:0; display:none;">
+                <div style="position:absolute; left:19px; bottom:20px; width:4px; height:4px; background:#ffd36b;"></div>
+                <div style="position:absolute; left:27px; bottom:10px; width:4px; height:4px; background:#ffce6b;"></div>
+                <div style="position:absolute; left:49px; bottom:36px; width:4px; height:4px; background:#ffd36b;"></div>
+                <div style="position:absolute; left:58px; bottom:24px; width:4px; height:4px; background:#ffce6b;"></div>
+                <div style="position:absolute; left:49px; bottom:12px; width:4px; height:4px; background:#ffd36b;"></div>
+                <div style="position:absolute; left:84px; bottom:16px; width:4px; height:4px; background:#ffce6b;"></div>
+                <div style="position:absolute; left:110px; bottom:26px; width:4px; height:4px; background:#ffd36b;"></div>
+                <div style="position:absolute; left:118px; bottom:12px; width:4px; height:4px; background:#ffce6b;"></div>
+              </div>
+            </div>
+            <!-- 时钟（真实时间，指针由 app.js 每秒驱动）-->
+            <svg id="og-clock" width="72" height="72" viewBox="0 0 46 46" style="flex:none; filter:drop-shadow(2px 3px 0 #5a4636);">
+              <circle cx="23" cy="23" r="20" fill="#fff" stroke="#5a4636" stroke-width="4"/>
+              <!-- 12/3/6/9 刻度 -->
+              <line x1="23" y1="5.5" x2="23" y2="9" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="40.5" y1="23" x2="37" y2="23" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="23" y1="40.5" x2="23" y2="37" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="5.5" y1="23" x2="9" y2="23" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+              <!-- 指针：时/分/秒 -->
+              <line id="og-clock-h" x1="23" y1="23" x2="23" y2="14" stroke="#5a4636" stroke-width="3.2" stroke-linecap="round"/>
+              <line id="og-clock-m" x1="23" y1="23" x2="23" y2="9.5" stroke="#5a4636" stroke-width="2.4" stroke-linecap="round"/>
+              <line id="og-clock-s" x1="23" y1="25.5" x2="23" y2="8.5" stroke="#ff8c42" stroke-width="1.3" stroke-linecap="round"/>
+              <circle cx="23" cy="23" r="1.8" fill="#5a4636"/>
+            </svg>
+            <!-- 天气牌（数据来自 open-meteo，每 30 分钟刷新）-->
+            <div id="og-board-weather" style="display:none; cursor:pointer; flex:none; width:158px; background:#fff8ee; border:3px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:9px 13px;">
+              <div style="font-size:13.5px; font-weight:700; color:#5a4636;"><span id="og-weather-emoji">🌤</span> <span id="og-weather-city">—</span></div>
+              <div id="og-weather-temp" style="font-size:22px; font-weight:700; color:#e8a33d; line-height:1.2;">—</div>
+              <div id="og-weather-desc" style="font-size:11px; color:#a8825c;">—</div>
+            </div>
+            <!-- 用量牌：两块左右排，中间有 gap（整体算一个 div）-->
+            <div id="og-usage-boards" style="flex:none; display:flex; gap:10px;">
+              <div id="og-board-office" title="点击查看用量明细" style="cursor:pointer; width:148px; background:#fff8ee; border:3px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:9px 13px;">
+                <div style="font-size:13.5px; font-weight:700; color:#5a4636;">🏢 办公室</div>
+                <div id="og-board-office-total" style="font-size:22px; font-weight:700; color:#d9694a; line-height:1.2;">—</div>
+                <div style="font-size:11px; color:#a8825c;">累计 · 今日 <b id="og-board-office-today">—</b></div>
+              </div>
+              <div id="og-board-iterm" title="点击查看用量明细" style="cursor:pointer; width:148px; background:#fff8ee; border:3px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:9px 13px;">
+                <div style="font-size:13.5px; font-weight:700; color:#5a4636;">💻 iTerm</div>
+                <div id="og-board-iterm-total" style="font-size:22px; font-weight:700; color:#3f8f96; line-height:1.2;">—</div>
+                <div style="font-size:11px; color:#a8825c;">累计 · 今日 <b id="og-board-iterm-today">—</b></div>
+              </div>
+            </div>
+            <!-- 操作牌 -->
+            <div style="flex:none; background:rgba(255,248,238,.94); border:2.5px solid #5a4636; border-radius:12px; padding:9px 14px; font-size:12.5px; font-weight:500; color:#5a4636; box-shadow:2px 3px 0 #5a4636; line-height:1.55; white-space:nowrap;"><b>🎮 操作</b><br><b>WASD</b> 走动 · <b>E</b>/空格 对话<br><b>Esc</b> 退出 · <b>Ctrl+C</b> 取消</div>
+          </div>
+          <!-- 右侧：EXIT 门（贴墙底） -->
+          <div id="og-door" style="position:relative; flex:none; align-self:flex-end; width:106px; height:148px; border-radius:12px 12px 0 0; background:#caa07a; border:4px solid #5a4636; box-shadow:2px 3px 0 #5a4636;">
+            <div style="position:absolute; inset:11px; border:3px solid #5a4636; border-radius:8px; opacity:.4;"></div>
+            <div style="position:absolute; left:14px; top:70px; width:14px; height:14px; border-radius:50%; background:#ffce6b; border:2px solid #5a4636;"></div>
+            <div style="position:absolute; left:50%; top:-15px; transform:translateX(-50%); background:#5fb0b7; color:#fff; border:2px solid #5a4636; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:600; letter-spacing:.05em;">EXIT</div>
+          </div>
+        </div>
+
+        <div style="position:absolute; left:0; right:0; bottom:0; height:9px; background:#e9b97f; border-top:3px solid #5a4636; z-index:2;"></div>
+      </div>
+
+      <!-- FLOOR -->
+      <div style="position:absolute; left:0; right:0; top:190px; bottom:0; background:#ffe2bd; background-image:repeating-linear-gradient(0deg,rgba(90,70,54,.10) 0 2px,transparent 2px 48px),repeating-linear-gradient(90deg,rgba(90,70,54,.05) 0 1px,transparent 1px 132px);"></div>
+      <div style="position:absolute; left:300px; top:430px; transform:translate(-50%,-50%); width:360px; height:300px; border-radius:50%; background:#ffd9a8; border:4px dashed #e9a064; opacity:.6;"></div>
+
+      <!-- COFFEE -->
+      <div style="position:absolute; left:16px; top:206px;">
+        <svg width="100" height="100" viewBox="0 0 110 110">
+          <rect x="4" y="80" width="102" height="14" rx="5" fill="#e9b97f" stroke="#5a4636" stroke-width="3"/>
+          <rect x="22" y="28" width="50" height="54" rx="7" fill="#d9694a" stroke="#5a4636" stroke-width="3"/>
+          <rect x="30" y="36" width="34" height="15" rx="3" fill="#3a2a22"/>
+          <circle cx="60" cy="58" r="4" fill="#ffce6b" stroke="#5a4636" stroke-width="2"/>
+          <rect x="40" y="62" width="16" height="4" rx="1" fill="#5a4636"/>
+          <path d="M42 72 h14 v6 q0 4 -7 4 q-7 0 -7 -4 z" fill="#fff" stroke="#5a4636" stroke-width="2.5"/>
+          <path d="M80 70 h14 v6 q0 4 -7 4 q-7 0 -7 -4 z" fill="#fff" stroke="#5a4636" stroke-width="2.5"/>
+          <path d="M86 66 q-4 -5 0 -10 q4 -5 0 -10" fill="none" stroke="#caa07a" stroke-width="2.5" stroke-linecap="round" opacity=".8" style="animation:float 2.5s ease-in-out infinite;"/>
+        </svg>
+      </div>
+      <!-- PLANT -->
+      <div style="position:absolute; left:566px; top:202px;">
+        <svg width="64" height="100" viewBox="0 0 72 108">
+          <path d="M35 64 Q16 50 14 22 Q30 36 36 60 Z" fill="#7cc36b" stroke="#5a4636" stroke-width="3"/>
+          <path d="M37 64 Q56 50 58 22 Q42 36 36 60 Z" fill="#6bb85c" stroke="#5a4636" stroke-width="3"/>
+          <path d="M36 62 Q35 30 36 10 Q42 30 39 58 Z" fill="#8ace78" stroke="#5a4636" stroke-width="3"/>
+          <path d="M18 70 h36 l-5 30 h-26 z" fill="#d9694a" stroke="#5a4636" stroke-width="3"/>
+          <rect x="14" y="62" width="44" height="12" rx="4" fill="#e98a5a" stroke="#5a4636" stroke-width="3"/>
+        </svg>
+      </div>
+
+      <!-- ===== PM (top · faces DOWN) ===== -->
+      
+
+      <!-- ===== Leo (left · faces RIGHT) ===== -->
+      
+
+      <!-- ===== Maya (right · faces LEFT) ===== -->
+      
+
+      <!-- ===== Ruby (bottom · faces UP) ===== -->
+      
+
+      <!-- agent characters layer -->
+      <div id="og-agents" style="position:absolute; inset:0; z-index:47; pointer-events:none;"></div>
+
+      <!-- task-card fly layer -->
+      <div id="og-cards" style="position:absolute; inset:0; pointer-events:none; z-index:40;"></div>
+
+      <!-- ===== PLAYER ===== -->
+      <div id="og-player" style="position:absolute; width:96px; text-align:center; z-index:48; pointer-events:none;">
+        <div id="og-prompt" style="opacity:0; transition:opacity .15s; position:absolute; left:50%; top:-34px; transform:translateX(-50%); white-space:nowrap; background:#5a4636; color:#fff; border-radius:9px; padding:3px 9px; font-size:11px; font-weight:600;">按 <b>E</b> 和 <span id="og-prompt-name">…</span> 对话</div>
+        <div style="animation:bob 1.5s ease-in-out infinite;">
+          <div id="og-player-badge" style="font-size:13px; font-weight:700; background:#ff8c42; color:#fff; border:2px solid #5a4636; padding:1px 8px; border-radius:9px; margin-bottom:3px; display:inline-block;">YOU</div>
+          <svg id="og-sprite" width="84" height="132" viewBox="0 0 96 150" style="display:block; margin:0 auto;">
+            <rect x="35" y="92" width="13" height="44" rx="6" fill="#4a6a8c" stroke="#5a4636" stroke-width="3"/>
+            <rect x="52" y="92" width="13" height="44" rx="6" fill="#4a6a8c" stroke="#5a4636" stroke-width="3"/>
+            <ellipse cx="41" cy="138" rx="11" ry="6" fill="#5a4636"/><ellipse cx="59" cy="138" rx="11" ry="6" fill="#5a4636"/>
+            <path d="M31 60 Q22 78 27 96" fill="none" stroke="#ffce6b" stroke-width="12" stroke-linecap="round"/>
+            <circle cx="27" cy="98" r="6" fill="#ffd2a6" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M69 60 Q78 78 73 96" fill="none" stroke="#ffce6b" stroke-width="12" stroke-linecap="round"/>
+            <circle cx="73" cy="98" r="6" fill="#ffd2a6" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M25 98 Q25 52 50 52 Q75 52 75 98 Z" fill="#ffce6b" stroke="#5a4636" stroke-width="3"/>
+            <rect x="43" y="40" width="13" height="14" fill="#ffd2a6" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="50" cy="26" r="18" fill="#ffd2a6" stroke="#5a4636" stroke-width="3"/>
+            <path d="M32 22 Q32 4 50 4 Q68 4 68 22 L68 18 Q68 9 50 9 Q32 9 32 18 Z" fill="#ff8c42" stroke="#5a4636" stroke-width="3"/>
+            <path d="M30 22 Q47 18 63 20 L63 27 Q47 29 30 27 Z" fill="#e0742f" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="43" cy="28" r="2.6" fill="#5a4636"/><circle cx="57" cy="28" r="2.6" fill="#5a4636"/>
+            <path d="M44 35 Q50 40 56 35" fill="none" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+
+    </div>
+
+
+    <!-- ===== CHAT ===== -->
+    <div style="width:690px; flex:none; background:#fff8ee; border-left:3px solid #f0d9b8; display:flex; flex-direction:column;">
+      <div style="height:60px; flex:none; display:flex; align-items:center; gap:11px; padding:0 16px; border-bottom:3px solid #f0d9b8;">
+        <div id="og-active-avatar" style="width:38px; height:38px; border-radius:50%; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#5a4636; background:#ffce6b;">··</div>
+        <div style="flex:1;">
+          <div id="og-active-name" style="font-size:15px; font-weight:700; color:#5a4636;">选择一位同事</div>
+          <div id="og-active-role" style="font-size:11px; color:#a8825c;">走近并按 E 开始对话</div>
+        </div>
+        <div id="og-active-session" style="display:none; font-size:12.5px; font-weight:600; color:#a8825c; background:#fff; border:2px solid #5a4636; border-radius:7px; padding:3px 10px; margin-right:8px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default;">—</div>
+        <div id="og-compact-progress" title="当前会话累计计费 / 自动压缩阈值" style="display:none; flex-direction:column; gap:2px; margin-right:8px; width:76px;">
+          <div style="height:9px; background:#fde7c8; border:1.5px solid #5a4636; border-radius:5px; overflow:hidden;"><div id="og-compact-progress-fill" style="height:100%; width:0%; background:#7bc47f;"></div></div>
+          <div id="og-compact-progress-label" style="font-size:10px; font-weight:600; color:#a8825c; text-align:center; white-space:nowrap;">—</div>
+        </div>
+        <div id="og-compact-btn" title="把当前会话压缩成摘要并开新会话（省 token）" style="display:none; font-size:12.5px; font-weight:600; color:#fff; background:#5fb0b7; border:2px solid #5a4636; border-radius:7px; padding:3px 10px; cursor:pointer; white-space:nowrap;">🗜️ 压缩</div>
+      </div>
+
+      <div id="og-chatscroll" style="flex:1; padding:16px; display:flex; flex-direction:column; gap:11px; overflow-y:auto; overflow-x:hidden;"></div>
+
+      <div id="og-pending" style="flex:none; padding:8px 14px 0; display:none; flex-wrap:wrap; gap:6px;"></div>
+
+      <div style="flex:none; padding:14px; border-top:3px solid #f0d9b8;">
+        <div style="display:flex; align-items:flex-end; gap:8px; background:#fff; border:2.5px solid #5a4636; border-radius:14px; padding:8px 10px; box-shadow:2px 3px 0 #5a4636;">
+          <label style="cursor:pointer; color:#a8825c; font-size:16px; line-height:1;">📎<input id="og-file" type="file" multiple style="display:none;"></label>
+          <textarea id="og-input" rows="1" placeholder="和同事说点什么… (Enter 发送 · Shift+Enter 换行 · Ctrl+Enter 全新会话)" style="flex:1; border:none; outline:none; resize:none; font-family:'Fredoka',sans-serif; font-size:13.5px; color:#5a4636; background:transparent; max-height:220px; overflow-y:auto; line-height:1.4;"></textarea>
+          <div id="og-send" style="cursor:pointer; width:32px; height:32px; border-radius:10px; background:#ff8c42; border:2px solid #5a4636; display:flex; align-items:center; justify-content:center; color:#fff; flex:none;">&#10138;</div>
+        </div>
+        <div style="font-size:10.5px; color:#bfa07a; margin-top:8px; padding-left:4px; line-height:1.6; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center;">
+          <span><kbd>Enter</kbd> 发送</span>
+          <span><kbd>Shift + Enter</kbd> <b>全新会话（不带历史记忆）</b></span>
+          <span><kbd>Ctrl + Enter</kbd> 换行</span>
+          <span><kbd>Ctrl + C</kbd> 取消</span>
+          <span><kbd>Esc</kbd> 退出</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /flex wrapper -->
+
+  <!-- ===== 日志台（停靠左下方，宽度只到聊天框左缘，不遮挡聊天；可拖上边缘调高度；默认隐藏）===== -->
+  <div id="og-console" style="display:none; position:absolute; left:0; right:690px; bottom:0; height:252px; background:#241c14; border-top:3px solid #5a4636; border-right:3px solid #5a4636; flex-direction:column; z-index:50;">
+    <!-- 拖拽手柄：按住上边缘上下拖动改变高度 -->
+    <div id="og-console-resize" title="拖动调整高度" style="position:absolute; left:0; right:0; top:-3px; height:9px; cursor:ns-resize; z-index:3;"></div>
+    <div style="flex:none; display:flex; align-items:center; gap:10px; padding:7px 14px; background:#2e2418; border-bottom:2px solid #43331f;">
+      <div style="font-size:12.5px; font-weight:700; color:#ffce6b;">📜 日志台</div>
+      <div style="font-size:10.5px; color:#a98c63;">agent 实时运行日志</div>
+      <div style="flex:1;"></div>
+      <label style="font-size:10.5px; color:#cdb38a; display:flex; align-items:center; gap:5px; cursor:pointer;"><input id="og-console-autoscroll" type="checkbox" checked style="cursor:pointer;">自动滚动</label>
+      <div id="og-console-clear" style="cursor:pointer; background:#43331f; color:#ffce6b; border:2px solid #5a4636; border-radius:8px; padding:3px 10px; font-size:11px; font-weight:600;">清空</div>
+      <div id="og-console-close" style="cursor:pointer; width:26px; height:26px; border-radius:8px; border:2px solid #5a4636; background:#43331f; color:#ffce6b; display:flex; align-items:center; justify-content:center; font-weight:700;">✕</div>
+    </div>
+    <div id="og-console-body" style="flex:1; overflow-y:auto; padding:8px 14px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; line-height:1.55; color:#d8c4a0;"></div>
+  </div>
+
+  <!-- ===== TEAM PANEL ===== -->
+  <div id="og-team" style="display:none; position:absolute; inset:0; background:rgba(90,70,54,.35); z-index:60; align-items:center; justify-content:center;">
+    <div id="og-team-box" style="width:420px; max-height:84%; overflow-y:auto; background:#fff8ee; border:3px solid #5a4636; border-radius:18px; box-shadow:5px 6px 0 #5a4636;">
+      <div style="display:flex; align-items:center; padding:16px 18px; border-bottom:3px solid #f0d9b8;">
+        <div style="font-size:17px; font-weight:700; color:#5a4636;">👥 团队管理</div>
+        <div style="flex:1;"></div>
+        <div id="og-team-add" style="cursor:pointer; background:#5fb0b7; color:#fff; border:2.5px solid #5a4636; border-radius:11px; padding:6px 12px; font-size:12.5px; font-weight:600; box-shadow:2px 2px 0 #5a4636;">+ 新增</div>
+        <div id="og-team-close" style="cursor:pointer; margin-left:10px; width:30px; height:30px; border-radius:9px; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; font-weight:700; color:#5a4636;">✕</div>
+      </div>
+      <div id="og-team-list" style="padding:14px 18px; display:flex; flex-direction:column; gap:10px;"></div>
+    </div>
+  </div>
+
+  <!-- ===== 用量明细 ===== -->
+  <div id="og-usage" style="display:none; position:absolute; inset:0; background:rgba(90,70,54,.35); z-index:75; align-items:center; justify-content:center;">
+    <div style="width:620px; max-height:90%; overflow-y:auto; background:#fff8ee; border:3px solid #5a4636; border-radius:20px; box-shadow:5px 6px 0 #5a4636;">
+      <div style="display:flex; align-items:center; padding:18px 20px; border-bottom:3px solid #f0d9b8;">
+        <div id="og-usage-title" style="font-size:20px; font-weight:700; color:#5a4636;">用量明细</div>
+        <div style="flex:1;"></div>
+        <div id="og-usage-close" style="cursor:pointer; width:32px; height:32px; border-radius:9px; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; font-weight:700; color:#5a4636;">✕</div>
+      </div>
+      <div style="padding:18px 20px;">
+        <div id="og-usage-stats" style="display:flex; gap:12px; margin-bottom:16px;"></div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:11px;">
+          <div style="font-size:15px; font-weight:700; color:#5a4636;">用量排行</div>
+          <div id="og-usage-dims" style="display:none; gap:5px; margin-left:12px;"></div>
+          <div style="flex:1;"></div>
+          <div id="og-usage-tabs" style="display:flex; gap:6px;"></div>
+        </div>
+        <div id="og-usage-rank"></div>
+        <div id="og-usage-foot" style="font-size:11.5px; color:#bfa07a; margin-top:14px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== COMPACT LOG MODAL ===== -->
+  <div id="og-compact-log" style="display:none; position:absolute; inset:0; background:rgba(90,70,54,.35); z-index:76; align-items:center; justify-content:center;">
+    <div style="width:620px; max-height:90%; overflow-y:auto; background:#fff8ee; border:3px solid #5a4636; border-radius:20px; box-shadow:5px 6px 0 #5a4636;">
+      <div style="display:flex; align-items:center; padding:18px 20px; border-bottom:3px solid #f0d9b8;">
+        <div style="font-size:20px; font-weight:700; color:#5a4636;">🗜️ 压缩记录</div>
+        <div style="flex:1;"></div>
+        <div id="og-compact-log-close" style="cursor:pointer; width:32px; height:32px; border-radius:9px; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; font-weight:700; color:#5a4636;">✕</div>
+      </div>
+      <div id="og-compact-log-list" style="padding:18px 20px;"></div>
+    </div>
+  </div>
+
+  <!-- ===== WEATHER LOCATION MODAL ===== -->
+  <div id="og-weather-modal" style="display:none; position:absolute; inset:0; background:rgba(90,70,54,.35); z-index:76; align-items:center; justify-content:center;">
+    <div style="width:340px; background:#fff8ee; border:3px solid #5a4636; border-radius:18px; box-shadow:5px 6px 0 #5a4636;">
+      <div style="display:flex; align-items:center; padding:16px 18px; border-bottom:3px solid #f0d9b8;">
+        <div style="font-size:17px; font-weight:700; color:#5a4636;">📍 设置天气位置</div>
+        <div style="flex:1;"></div>
+        <div id="og-weather-modal-close" style="cursor:pointer; width:30px; height:30px; border-radius:9px; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; font-weight:700; color:#5a4636;">✕</div>
+      </div>
+      <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:8px;">
+          <select id="og-weather-country" style="font-family:'Fredoka',sans-serif; font-size:13.5px; font-weight:600; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px; background:#fde7c8; outline:none; cursor:pointer;">
+            <option value="us">🇺🇸 美国</option>
+            <option value="au">🇦🇺 澳大利亚</option>
+            <option value="gb">🇬🇧 英国</option>
+            <option value="ca">🇨🇦 加拿大</option>
+            <option value="jp">🇯🇵 日本</option>
+            <option value="de">🇩🇪 德国</option>
+          </select>
+          <input id="og-weather-zip" placeholder="邮编，如 91702" style="flex:1; font-family:'Fredoka',sans-serif; font-size:13.5px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;">
+        </div>
+        <div style="font-size:11.5px; color:#a8825c; line-height:1.5;">留空提交 = 恢复按 IP 自动定位。当前位置显示在墙上天气牌，悬停可看详情。</div>
+        <div id="og-weather-save" style="cursor:pointer; text-align:center; background:#ff8c42; border:2.5px solid #5a4636; border-radius:12px; padding:9px; font-size:14px; font-weight:700; color:#fff; box-shadow:2px 2px 0 #5a4636;">确认</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== EDIT MODAL ===== -->
+  <div id="og-edit" style="display:none; position:absolute; inset:0; background:rgba(90,70,54,.35); z-index:70; align-items:center; justify-content:center;">
+    <div id="og-edit-box" style="width:420px; max-height:88%; overflow-y:auto; background:#fff8ee; border:3px solid #5a4636; border-radius:18px; box-shadow:5px 6px 0 #5a4636;">
+      <div style="display:flex; align-items:center; padding:16px 18px; border-bottom:3px solid #f0d9b8;">
+        <div id="og-edit-title" style="font-size:16px; font-weight:700; color:#5a4636;">编辑成员</div>
+        <div style="flex:1;"></div>
+        <div id="og-edit-close" style="cursor:pointer; width:30px; height:30px; border-radius:9px; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; font-weight:700; color:#5a4636;">✕</div>
+      </div>
+      <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px;">
+        <label style="font-size:12px; font-weight:600; color:#a8825c;">名字<input id="og-f-name" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;"></label>
+        <div style="display:flex; gap:10px;">
+          <label id="og-f-row-role" style="flex:1; font-size:12px; font-weight:600; color:#a8825c;">角色<input id="og-f-role" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;"></label>
+          <label style="width:96px; font-size:12px; font-weight:600; color:#a8825c;">头像色
+            <select id="og-f-accent" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px; outline:none; background:#fff;">
+              <option value="#ff8c42">橘</option><option value="#9ec1ff">蓝</option><option value="#ffb0c4">粉</option><option value="#d4b0ff">紫</option><option value="#7cc36b">绿</option><option value="#ffce6b">黄</option>
+            </select>
+          </label>
+        </div>
+        <label id="og-f-row-cwd" style="font-size:12px; font-weight:600; color:#a8825c;">工作目录<input id="og-f-cwd" placeholder="~/projects/…" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;"></label>
+        <label id="og-f-row-tools" style="font-size:12px; font-weight:600; color:#a8825c;">工具(逗号分隔)<input id="og-f-tools" placeholder="Edit,Read,Bash" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;"></label>
+        <label id="og-f-row-model" style="font-size:12px; font-weight:600; color:#a8825c;">Claude 模型选择
+          <select id="og-f-model" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px; outline:none; background:#fff;">
+            <option value="">默认 (Sonnet)</option>
+            <option value="sonnet">Sonnet (性能均衡)</option>
+            <option value="opus">Opus (最强推理)</option>
+            <option value="haiku">Haiku (极速轻量)</option>
+          </select>
+        </label>
+        <label id="og-f-row-codex-model" style="font-size:12px; font-weight:600; color:#a8825c;">Codex 模型选择
+          <select id="og-f-codex-model" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px; outline:none; background:#fff;">
+            <option value="">默认 (账号配置模型)</option>
+            <option value="gpt-4o">gpt-4o (性能强劲)</option>
+            <option value="gpt-4o-mini">gpt-4o-mini (经济极速)</option>
+            <option value="o1-mini">o1-mini (强逻辑推理)</option>
+            <option value="o3-mini">o3-mini (高级推理)</option>
+          </select>
+        </label>
+        <label id="og-f-row-prompt" style="font-size:12px; font-weight:600; color:#a8825c;">System Prompt<textarea id="og-f-prompt" rows="4" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none; resize:vertical;"></textarea></label>
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <div id="og-edit-save" style="cursor:pointer; flex:1; text-align:center; background:#ff8c42; color:#fff; border:2.5px solid #5a4636; border-radius:12px; padding:10px; font-size:13.5px; font-weight:700; box-shadow:2px 3px 0 #5a4636;">保存</div>
+          <div id="og-edit-del" style="cursor:pointer; background:#fff; color:#d9694a; border:2.5px solid #d9694a; border-radius:12px; padding:10px 16px; font-size:13.5px; font-weight:700;">删除</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main container -->
+
+<template id="og-char-0">
+<div class="og-charinner" style="position:relative; width:210px; text-align:center;">
+        <div class="og-bub" style="display:inline-block; background:#fff; border:2.5px solid #5a4636; border-radius:15px; padding:6px 12px; font-size:11.5px; font-weight:600; color:#a8825c; margin-bottom:4px; box-shadow:2px 3px 0 #5a4636; animation:float 3s ease-in-out infinite;">编排中…</div>
+        <div style="position:relative; width:210px; height:186px; margin:0 auto;">
+          <svg width="210" height="186" viewBox="0 0 210 186">
+            <rect x="70" y="14" width="70" height="64" rx="18" fill="#9aa0ac" stroke="#5a4636" stroke-width="3"/>
+            <path d="M82 74 Q70 96 78 122" fill="none" stroke="#ff8c42" stroke-width="13" stroke-linecap="round"/>
+            <path d="M128 74 Q140 96 132 122" fill="none" stroke="#ff8c42" stroke-width="13" stroke-linecap="round"/>
+            <path d="M76 124 Q76 62 105 62 Q134 62 134 124 Z" fill="#ff8c42" stroke="#5a4636" stroke-width="3"/>
+            <rect x="97" y="48" width="16" height="16" fill="#ffd2a6" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="105" cy="34" r="19" fill="#ffd2a6" stroke="#5a4636" stroke-width="3"/>
+            <path d="M85 32 Q83 7 105 7 Q127 7 125 32 Q121 18 105 18 Q89 18 85 32 Z" fill="#7a4a2a" stroke="#5a4636" stroke-width="3"/>
+            <path d="M85 36 Q83 4 105 4 Q127 4 125 36" fill="none" stroke="#3a3a3a" stroke-width="4" stroke-linecap="round"/>
+            <rect x="79" y="33" width="9" height="13" rx="3.5" fill="#3a3a3a"/><rect x="122" y="33" width="9" height="13" rx="3.5" fill="#3a3a3a"/>
+            <path d="M88 43 Q97 51 103 48" fill="none" stroke="#3a3a3a" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="98" cy="35" r="2.6" fill="#5a4636"/><circle cx="112" cy="35" r="2.6" fill="#5a4636"/>
+            <path d="M99 43 Q105 48 111 43" fill="none" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="93" cy="41" r="2.6" fill="#ff9eb0" opacity=".55"/><circle cx="117" cy="41" r="2.6" fill="#ff9eb0" opacity=".55"/>
+            <polygon points="44,150 166,150 180,132 58,132" fill="#f2cd9a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="44,150 166,150 166,162 44,162" fill="#e3aa6a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="166,150 180,132 180,144 166,162" fill="#d2934f" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="50" y="161" width="10" height="20" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="150" y="161" width="10" height="20" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="170" y="144" width="9" height="34" rx="3" fill="#c98842" stroke="#5a4636" stroke-width="3"/>
+            <polygon points="98,128 112,128 116,140 94,140" fill="#7a6a5a" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="80" y="94" width="50" height="36" rx="5" fill="#4a3a30" stroke="#5a4636" stroke-width="3"/>
+            <rect x="85" y="99" width="40" height="26" rx="2" fill="#2a2440"/>
+            <rect x="90" y="104" width="20" height="3.5" rx="1.5" fill="#ff8c42"/><rect x="90" y="111" width="30" height="3.5" rx="1.5" fill="#5fb0b7"/><rect x="90" y="118" width="14" height="3.5" rx="1.5" fill="#ffce6b"/>
+            <rect x="78" y="140" width="44" height="10" rx="3" fill="#efe3d2" stroke="#5a4636" stroke-width="2.5"/>
+            <ellipse cx="134" cy="146" rx="7" ry="5" fill="#efe3d2" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="138" y="132" width="14" height="14" rx="2.5" fill="#ff8c42" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M152 135 q5 1 5 4 q0 4 -5 4" fill="none" stroke="#5a4636" stroke-width="2.5"/>
+          </svg>
+          <svg class="og-ringwrap" width="36" height="36" viewBox="0 0 36 36" style="position:absolute; left:128px; top:14px; filter:drop-shadow(1px 2px 0 #5a4636);"><circle cx="18" cy="18" r="14" fill="#fff" stroke="#5a4636" stroke-width="2.5"/><circle class="og-ringfg" cx="18" cy="18" r="14" fill="none" stroke="#ffb443" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="48" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:#5a4636; margin-top:2px;" class="og-name">派工 PM</div>
+      </div>
+</template>
+<template id="og-char-1">
+<div class="og-charinner" style="position:relative; width:210px; text-align:center;">
+        <div class="og-bub" style="display:inline-block; background:#cdeedd; border:2.5px solid #5a4636; border-radius:15px; padding:6px 12px; font-size:11.5px; font-weight:600; color:#2f8a5b; margin-bottom:4px; box-shadow:2px 3px 0 #5a4636;">已交付 ✓</div>
+        <div style="position:relative; width:210px; height:186px; margin:0 auto;">
+          <svg width="210" height="186" viewBox="0 0 210 186">
+            <polygon points="96,118 196,118 184,100 84,100" fill="#f2cd9a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="96,118 196,118 196,130 96,130" fill="#e3aa6a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="102" y="130" width="10" height="42" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="182" y="130" width="10" height="42" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <polygon points="152,100 152,72 168,72 168,100" fill="#4a3a30" stroke="#5a4636" stroke-width="3"/>
+            <rect x="150" y="74" width="5" height="24" fill="#5fb0b7"/>
+            <rect x="138" y="110" width="30" height="9" rx="3" fill="#efe3d2" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="172" y="104" width="13" height="13" rx="2.5" fill="#9ec1ff" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="30" y="74" width="22" height="60" rx="10" fill="#9aa0ac" stroke="#5a4636" stroke-width="3"/>
+            <ellipse cx="58" cy="138" rx="30" ry="7" fill="#7a7580" stroke="#5a4636" stroke-width="3"/>
+            <rect x="54" y="120" width="8" height="18" fill="#6a6570" stroke="#5a4636" stroke-width="2.5"/>
+            <circle cx="34" cy="142" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/><circle cx="58" cy="146" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/><circle cx="82" cy="142" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/>
+            <path d="M62 120 Q88 120 100 124" fill="none" stroke="#5a4636" stroke-width="13" stroke-linecap="round"/>
+            <ellipse cx="104" cy="126" rx="10" ry="6" fill="#3a2a1f"/>
+            <path d="M44 118 Q44 74 70 74 Q92 74 92 116 Q70 124 44 118 Z" fill="#9ec1ff" stroke="#5a4636" stroke-width="3"/>
+            <path d="M84 86 Q104 92 118 108" fill="none" stroke="#9ec1ff" stroke-width="12" stroke-linecap="round"/>
+            <circle cx="120" cy="110" r="6" fill="#ffe0c2" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="64" y="58" width="13" height="16" fill="#ffe0c2" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="68" cy="46" r="18" fill="#ffe0c2" stroke="#5a4636" stroke-width="3"/>
+            <path d="M50 44 Q47 18 70 18 Q88 18 88 36 Q82 30 70 30 Q58 30 52 38 Q50 40 50 44 Z" fill="#5a3a22" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="80" cy="46" r="6.5" fill="#fff" stroke="#5a4636" stroke-width="2.5"/>
+            <circle cx="80" cy="46" r="2.4" fill="#5a4636"/>
+            <path d="M86 40 L90 42" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M84 53 Q80 56 76 54" fill="none" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="76" cy="51" r="2.4" fill="#ff9eb0" opacity=".5"/>
+          </svg>
+          <svg class="og-ringwrap" width="36" height="36" viewBox="0 0 36 36" style="position:absolute; left:18px; top:78px; display:none; filter:drop-shadow(1px 2px 0 #5a4636);"><circle cx="18" cy="18" r="14" fill="#fff" stroke="#5a4636" stroke-width="2.5"/><circle class="og-ringfg" cx="18" cy="18" r="14" fill="none" stroke="#5fb0b7" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="88" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:#5a4636; margin-top:2px;" class="og-name">Leo · 前端</div>
+      </div>
+</template>
+<template id="og-char-2">
+<div class="og-charinner" style="position:relative; width:210px; text-align:center;">
+        <div class="og-bub" style="display:inline-block; background:#ffe3b0; border:2.5px solid #5a4636; border-radius:15px; padding:6px 12px; font-size:11.5px; font-weight:600; color:#b9791a; margin-bottom:4px; box-shadow:2px 3px 0 #5a4636; animation:float 3s ease-in-out .5s infinite;">写鉴权接口…</div>
+        <div style="position:relative; width:210px; height:186px; margin:0 auto;">
+          <svg width="210" height="186" viewBox="0 0 210 186">
+            <polygon points="14,118 114,118 126,100 26,100" fill="#f2cd9a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="14,118 114,118 114,130 14,130" fill="#e3aa6a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="18" y="130" width="10" height="42" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="98" y="130" width="10" height="42" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <polygon points="42,100 42,72 58,72 58,100" fill="#4a3a30" stroke="#5a4636" stroke-width="3"/>
+            <rect x="55" y="74" width="5" height="24" fill="#ff8c42"/>
+            <rect x="42" y="110" width="30" height="9" rx="3" fill="#efe3d2" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="22" y="104" width="13" height="13" rx="2.5" fill="#ffb0c4" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M29 102 q-3 -4 0 -8" fill="none" stroke="#caa07a" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+            <rect x="158" y="74" width="22" height="60" rx="10" fill="#9aa0ac" stroke="#5a4636" stroke-width="3"/>
+            <ellipse cx="152" cy="138" rx="30" ry="7" fill="#7a7580" stroke="#5a4636" stroke-width="3"/>
+            <rect x="148" y="120" width="8" height="18" fill="#6a6570" stroke="#5a4636" stroke-width="2.5"/>
+            <circle cx="128" cy="142" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/><circle cx="152" cy="146" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/><circle cx="176" cy="142" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/>
+            <path d="M148 120 Q122 120 110 124" fill="none" stroke="#7a5a4a" stroke-width="13" stroke-linecap="round"/>
+            <ellipse cx="106" cy="126" rx="10" ry="6" fill="#5a4636"/>
+            <path d="M118 116 Q118 74 140 74 Q166 74 166 118 Q140 124 118 116 Z" fill="#ffb0c4" stroke="#5a4636" stroke-width="3"/>
+            <path d="M126 86 Q106 92 92 108" fill="none" stroke="#ffb0c4" stroke-width="12" stroke-linecap="round"/>
+            <circle cx="90" cy="110" r="6" fill="#f6c79b" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="133" y="58" width="13" height="16" fill="#f6c79b" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="142" cy="46" r="18" fill="#f6c79b" stroke="#5a4636" stroke-width="3"/>
+            <path d="M160 44 Q163 18 140 18 Q122 18 122 36 Q128 30 140 30 Q152 30 158 38 Q160 40 160 44 Z" fill="#3a2a1a" stroke="#5a4636" stroke-width="3"/>
+            <path d="M158 40 Q176 46 172 78 Q168 60 156 56 Z" fill="#3a2a1a" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="130" cy="46" r="2.6" fill="#5a4636"/>
+            <path d="M124 40 L120 42" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M126 53 Q130 56 134 54" fill="none" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="134" cy="51" r="2.6" fill="#ff7e96" opacity=".5"/>
+          </svg>
+          <svg class="og-ringwrap" width="36" height="36" viewBox="0 0 36 36" style="position:absolute; left:150px; top:30px; filter:drop-shadow(1px 2px 0 #5a4636);"><circle cx="18" cy="18" r="14" fill="#fff" stroke="#5a4636" stroke-width="2.5"/><circle class="og-ringfg" cx="18" cy="18" r="14" fill="none" stroke="#ff8c42" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="29" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:#5a4636; margin-top:2px;" class="og-name">Maya · 后端</div>
+      </div>
+</template>
+<template id="og-char-3">
+<div class="og-charinner" style="position:relative; width:210px; text-align:center;">
+        <div class="og-bub" style="display:inline-block; background:#ede4f7; border:2.5px solid #5a4636; border-radius:15px; padding:6px 12px; font-size:11.5px; font-weight:600; color:#7a5cab; margin-bottom:4px; box-shadow:2px 3px 0 #5a4636;">排队中</div>
+        <div style="position:relative; width:210px; height:186px; margin:0 auto;">
+          <svg width="210" height="186" viewBox="0 0 210 186">
+            <polygon points="56,74 154,74 168,58 70,58" fill="#f2cd9a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="56,74 154,74 154,86 56,86" fill="#e3aa6a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="86" y="34" width="40" height="26" rx="4" fill="#c25a3c" stroke="#5a4636" stroke-width="3"/>
+            <line x1="92" y1="42" x2="120" y2="42" stroke="#a8492f" stroke-width="2.5"/><line x1="92" y1="48" x2="120" y2="48" stroke="#a8492f" stroke-width="2.5"/><line x1="92" y1="54" x2="112" y2="54" stroke="#a8492f" stroke-width="2.5"/>
+            <polygon points="100,60 112,60 116,72 96,72" fill="#7a6a5a" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M106 60 q8 6 4 14" fill="none" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="84" y="72" width="42" height="9" rx="3" fill="#efe3d2" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="62" y="86" width="9" height="40" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="140" y="86" width="9" height="40" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <ellipse cx="105" cy="170" rx="34" ry="7" fill="#7a7580" stroke="#5a4636" stroke-width="3"/>
+            <rect x="101" y="150" width="8" height="20" fill="#6a6570" stroke="#5a4636" stroke-width="2.5"/>
+            <circle cx="74" cy="174" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/><circle cx="105" cy="177" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/><circle cx="136" cy="174" r="4.5" fill="#5a5560" stroke="#5a4636" stroke-width="2"/>
+            <path d="M74 150 Q74 104 105 104 Q136 104 136 150 Z" fill="#d4b0ff" stroke="#5a4636" stroke-width="3"/>
+            <rect x="78" y="92" width="54" height="60" rx="16" fill="#9aa0ac" stroke="#5a4636" stroke-width="3"/>
+            <line x1="105" y1="100" x2="105" y2="146" stroke="#828795" stroke-width="3"/>
+            <circle cx="105" cy="80" r="18" fill="#2a1a12" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="105" cy="62" r="9" fill="#2a1a12" stroke="#5a4636" stroke-width="3"/>
+          </svg>
+          <svg class="og-ringwrap" width="36" height="36" viewBox="0 0 36 36" style="position:absolute; left:135px; top:44px; display:none; filter:drop-shadow(1px 2px 0 #5a4636);"><circle cx="18" cy="18" r="14" fill="#fff" stroke="#5a4636" stroke-width="2.5"/><circle class="og-ringfg" cx="18" cy="18" r="14" fill="none" stroke="#a06bf0" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="88" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:#5a4636; margin-top:2px;" class="og-name">Ruby · 测试</div>
+      </div>
+</template>
+
+<template id="og-char-4">
+<div class="og-charinner" style="position:relative; width:210px; text-align:center;">
+        <div class="og-bub" style="display:inline-block; background:#e0f3f4; border:2.5px solid #5a4636; border-radius:15px; padding:6px 12px; font-size:11.5px; font-weight:600; color:#3f8f96; margin-bottom:4px; box-shadow:2px 3px 0 #5a4636; animation:float 3s ease-in-out infinite;">待命中…</div>
+        <div style="position:relative; width:210px; height:186px; margin:0 auto;">
+          <svg width="210" height="186" viewBox="0 0 210 186">
+            <!-- 椅背 -->
+            <rect x="70" y="14" width="70" height="64" rx="18" fill="#9aa0ac" stroke="#5a4636" stroke-width="3"/>
+            <!-- 手臂（青色卫衣） -->
+            <path d="M82 74 Q70 96 78 122" fill="none" stroke="#5fb0b7" stroke-width="13" stroke-linecap="round"/>
+            <path d="M128 74 Q140 96 132 122" fill="none" stroke="#5fb0b7" stroke-width="13" stroke-linecap="round"/>
+            <!-- 身体 -->
+            <path d="M76 124 Q76 62 105 62 Q134 62 134 124 Z" fill="#5fb0b7" stroke="#5a4636" stroke-width="3"/>
+            <!-- 卫衣帽子垂在背后 -->
+            <path d="M92 66 Q105 76 118 66 L114 78 Q105 84 96 78 Z" fill="#4d9aa1" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="97" y="48" width="16" height="16" fill="#f6c79b" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="105" cy="34" r="19" fill="#f6c79b" stroke="#5a4636" stroke-width="3"/>
+            <!-- 黑色短发 -->
+            <path d="M85 32 Q85 8 105 8 Q125 8 125 32 Q118 19 105 19 Q92 19 85 32 Z" fill="#2a2a2e" stroke="#5a4636" stroke-width="3"/>
+            <!-- 头戴耳机：横梁 + 两个耳罩 -->
+            <path d="M83 26 Q105 0 127 26" fill="none" stroke="#3a3a3a" stroke-width="4.5" stroke-linecap="round"/>
+            <rect x="78" y="26" width="10" height="16" rx="4.5" fill="#5fb0b7" stroke="#5a4636" stroke-width="3"/>
+            <rect x="122" y="26" width="10" height="16" rx="4.5" fill="#5fb0b7" stroke="#5a4636" stroke-width="3"/>
+            <!-- 表情 -->
+            <circle cx="98" cy="35" r="2.6" fill="#5a4636"/><circle cx="112" cy="35" r="2.6" fill="#5a4636"/>
+            <path d="M99 43 Q105 48 111 43" fill="none" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="93" cy="41" r="2.6" fill="#ff9eb0" opacity=".55"/><circle cx="117" cy="41" r="2.6" fill="#ff9eb0" opacity=".55"/>
+            <!-- 桌子 -->
+            <polygon points="44,150 166,150 180,132 58,132" fill="#f2cd9a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="44,150 166,150 166,162 44,162" fill="#e3aa6a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="166,150 180,132 180,144 166,162" fill="#d2934f" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="50" y="161" width="10" height="20" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="150" y="161" width="10" height="20" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="170" y="144" width="9" height="34" rx="3" fill="#c98842" stroke="#5a4636" stroke-width="3"/>
+            <!-- 笔记本电脑：屏幕(聊天气泡) + 底座 -->
+            <rect x="82" y="96" width="46" height="30" rx="4" fill="#3a4a4c" stroke="#5a4636" stroke-width="3"/>
+            <rect x="86" y="100" width="38" height="22" rx="2" fill="#173338"/>
+            <rect x="90" y="104" width="20" height="9" rx="4" fill="#5fb0b7"/>
+            <polygon points="94,113 99,113 94,117" fill="#5fb0b7"/>
+            <rect x="106" y="112" width="14" height="7" rx="3.5" fill="#e0f3f4"/>
+            <rect x="76" y="126" width="58" height="7" rx="3" fill="#4a5a5c" stroke="#5a4636" stroke-width="2.5"/>
+            <!-- 咖啡杯 -->
+            <rect x="140" y="132" width="13" height="14" rx="2.5" fill="#5fb0b7" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M153 135 q5 1 5 4 q0 4 -5 4" fill="none" stroke="#5a4636" stroke-width="2.5"/>
+          </svg>
+          <svg class="og-ringwrap" width="36" height="36" viewBox="0 0 36 36" style="position:absolute; left:128px; top:14px; display:none; filter:drop-shadow(1px 2px 0 #5a4636);"><circle cx="18" cy="18" r="14" fill="#fff" stroke="#5a4636" stroke-width="2.5"/><circle class="og-ringfg" cx="18" cy="18" r="14" fill="none" stroke="#5fb0b7" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="88" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:#5a4636; margin-top:2px;" class="og-name">聊后</div>
+      </div>
+</template>
+
+<template id="og-char-5">
+<div class="og-charinner" style="position:relative; width:210px; text-align:center;">
+        <div class="og-bub" style="display:inline-block; background:#f3e8ff; border:2.5px solid #5a4636; border-radius:15px; padding:6px 12px; font-size:11.5px; font-weight:600; color:#7a5cab; margin-bottom:4px; box-shadow:2px 3px 0 #5a4636; animation:float 3.4s ease-in-out infinite;">在线中…</div>
+        <div style="position:relative; width:210px; height:186px; margin:0 auto;">
+          <svg width="210" height="186" viewBox="0 0 210 186">
+            <!-- 椅背 -->
+            <rect x="70" y="14" width="70" height="64" rx="18" fill="#9aa0ac" stroke="#5a4636" stroke-width="3"/>
+            <!-- 手臂（紫色毛衣） -->
+            <path d="M82 74 Q70 96 78 122" fill="none" stroke="#b58ae0" stroke-width="13" stroke-linecap="round"/>
+            <path d="M128 74 Q140 96 132 122" fill="none" stroke="#b58ae0" stroke-width="13" stroke-linecap="round"/>
+            <!-- 身体 + 领口 -->
+            <path d="M76 124 Q76 62 105 62 Q134 62 134 124 Z" fill="#b58ae0" stroke="#5a4636" stroke-width="3"/>
+            <path d="M96 64 Q105 72 114 64" fill="none" stroke="#9a6fd0" stroke-width="3" stroke-linecap="round"/>
+            <rect x="97" y="48" width="16" height="16" fill="#ffe0c2" stroke="#5a4636" stroke-width="3"/>
+            <circle cx="105" cy="34" r="19" fill="#ffe0c2" stroke="#5a4636" stroke-width="3"/>
+            <!-- 栗色头发 + 丸子头 -->
+            <circle cx="105" cy="9" r="8" fill="#8a5a30" stroke="#5a4636" stroke-width="3"/>
+            <path d="M85 34 Q83 10 105 10 Q127 10 125 34 Q119 20 105 20 Q91 20 85 34 Z" fill="#8a5a30" stroke="#5a4636" stroke-width="3"/>
+            <path d="M85 34 Q82 44 86 50" fill="none" stroke="#8a5a30" stroke-width="5" stroke-linecap="round"/>
+            <path d="M125 34 Q128 44 124 50" fill="none" stroke="#8a5a30" stroke-width="5" stroke-linecap="round"/>
+            <!-- 圆框眼镜 -->
+            <circle cx="98" cy="36" r="6" fill="rgba(255,255,255,.35)" stroke="#3a3a3a" stroke-width="2.5"/>
+            <circle cx="112" cy="36" r="6" fill="rgba(255,255,255,.35)" stroke="#3a3a3a" stroke-width="2.5"/>
+            <line x1="104" y1="36" x2="106" y2="36" stroke="#3a3a3a" stroke-width="2.5"/>
+            <circle cx="98" cy="36" r="2.2" fill="#5a4636"/><circle cx="112" cy="36" r="2.2" fill="#5a4636"/>
+            <path d="M100 45 Q105 49 110 45" fill="none" stroke="#5a4636" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="92" cy="42" r="2.6" fill="#ff9eb0" opacity=".55"/><circle cx="118" cy="42" r="2.6" fill="#ff9eb0" opacity=".55"/>
+            <!-- 桌子 -->
+            <polygon points="44,150 166,150 180,132 58,132" fill="#f2cd9a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="44,150 166,150 166,162 44,162" fill="#e3aa6a" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <polygon points="166,150 180,132 180,144 166,162" fill="#d2934f" stroke="#5a4636" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="50" y="161" width="10" height="20" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="150" y="161" width="10" height="20" rx="3" fill="#d99a55" stroke="#5a4636" stroke-width="3"/>
+            <rect x="170" y="144" width="9" height="34" rx="3" fill="#c98842" stroke="#5a4636" stroke-width="3"/>
+            <!-- 立式平板：聊天界面 -->
+            <polygon points="96,126 114,126 118,138 92,138" fill="#7a6a5a" stroke="#5a4636" stroke-width="2.5"/>
+            <rect x="84" y="94" width="42" height="34" rx="4" fill="#4a3a56" stroke="#5a4636" stroke-width="3"/>
+            <rect x="88" y="98" width="34" height="26" rx="2" fill="#2a2440"/>
+            <rect x="91" y="102" width="17" height="7" rx="3.5" fill="#d4b0ff"/>
+            <rect x="102" y="112" width="17" height="7" rx="3.5" fill="#f3e8ff"/>
+            <!-- 小绿植 -->
+            <path d="M146 128 Q140 118 144 110 Q150 118 148 128 Z" fill="#7cc36b" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M150 128 Q156 118 152 110 Q147 118 148 128 Z" fill="#6bb85c" stroke="#5a4636" stroke-width="2.5"/>
+            <path d="M141 128 h14 l-2 12 h-10 z" fill="#e98a5a" stroke="#5a4636" stroke-width="2.5"/>
+            <!-- 手机平放 -->
+            <rect x="62" y="136" width="18" height="10" rx="3" fill="#3a3a3a" stroke="#5a4636" stroke-width="2.5"/>
+          </svg>
+          <svg class="og-ringwrap" width="36" height="36" viewBox="0 0 36 36" style="position:absolute; left:128px; top:14px; display:none; filter:drop-shadow(1px 2px 0 #5a4636);"><circle cx="18" cy="18" r="14" fill="#fff" stroke="#5a4636" stroke-width="2.5"/><circle class="og-ringfg" cx="18" cy="18" r="14" fill="none" stroke="#b58ae0" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="88" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:#5a4636; margin-top:2px;" class="og-name">聊前</div>
+      </div>
+</template>
+
+  <!-- ===== LOGIN MODAL ===== -->
+  <div id="og-login" style="display:none; position:absolute; inset:0; background:rgba(90,70,54,.35); z-index:75; align-items:center; justify-content:center;">
+    <div style="background:#fff8ee; border:3px solid #5a4636; border-radius:20px; width:450px; padding:22px; box-shadow:4px 6px 0 #5a4636; font-family:'Fredoka',sans-serif; color:#5a4636; position:relative; display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:center;">
+        <div style="font-size:17px; font-weight:700; color:#5a4636;">⚙️ 模型与登录</div>
+        <div style="flex:1;"></div>
+        <div id="og-login-close" style="cursor:pointer; width:30px; height:30px; border-radius:9px; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; font-weight:700; color:#5a4636;">✕</div>
+      </div>
+      
+      <div id="og-login-step-1" style="display:flex; flex-direction:column; gap:14px;">
+        <p style="font-size:12.5px; line-height:1.45; margin:0; color:#a8825c;">您可以选择当前使用的 Agent 后端模型，并在此管理它们的本地订阅登录状态。</p>
+        
+        <!-- Active Provider Option -->
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="font-size:13px; font-weight:700; color:#5a4636;">首选模型服务商 (Active Engine):</div>
+          <div style="display:flex; gap:10px;">
+            <label style="flex:1; cursor:pointer; display:flex; align-items:center; gap:8px; background:#fff; border:2.5px solid #5a4636; border-radius:12px; padding:10px 14px; box-shadow:2px 3px 0 #5a4636;">
+              <input type="radio" name="og-active-provider" value="claude" style="width:16px; height:16px; cursor:pointer;">
+              <div style="display:flex; flex-direction:column;">
+                <span style="font-size:13px; font-weight:700;">Claude Code</span>
+                <span style="font-size:10px; color:#a8825c;">Anthropic 官方 CLI</span>
+              </div>
+            </label>
+            <label style="flex:1; cursor:pointer; display:flex; align-items:center; gap:8px; background:#fff; border:2.5px solid #5a4636; border-radius:12px; padding:10px 14px; box-shadow:2px 3px 0 #5a4636;">
+              <input type="radio" name="og-active-provider" value="codex" style="width:16px; height:16px; cursor:pointer;">
+              <div style="display:flex; flex-direction:column;">
+                <span style="font-size:13px; font-weight:700;">Codex CLI</span>
+                <span style="font-size:10px; color:#a8825c;">ChatGPT Plus 订阅</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Provider Statuses -->
+        <div style="border-top:2px dashed #f0d9b8; padding-top:14px; display:flex; flex-direction:column; gap:10px;">
+          <div style="font-size:13px; font-weight:700; color:#5a4636;">服务商状态及登录管理:</div>
+          
+          <!-- Claude Code -->
+          <div style="background:#fff; border:2.5px solid #5a4636; border-radius:12px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <span style="font-size:12px; font-weight:700;">Claude Code</span>
+              <span id="og-status-claude" style="font-size:11px; color:#a8825c;">⏳ 正在检测...</span>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button id="og-btn-login-claude" style="cursor:pointer; background:#ff8c42; color:#fff; border:2px solid #5a4636; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; box-shadow:1.5px 2px 0 #5a4636;">登录</button>
+              <button id="og-btn-logout-claude" style="cursor:pointer; background:#fff; color:#d9694a; border:2px solid #d9694a; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; box-shadow:1.5px 2px 0 #d9694a;">登出</button>
+            </div>
+          </div>
+
+          <!-- Codex -->
+          <div style="background:#fff; border:2.5px solid #5a4636; border-radius:12px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <span style="font-size:12px; font-weight:700;">Codex CLI</span>
+              <span id="og-status-codex" style="font-size:11px; color:#a8825c;">⏳ 正在检测...</span>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button id="og-btn-login-codex" style="cursor:pointer; background:#5fb0b7; color:#fff; border:2px solid #5a4636; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; box-shadow:1.5px 2px 0 #5a4636;">登录</button>
+              <button id="og-btn-logout-codex" style="cursor:pointer; background:#fff; color:#d9694a; border:2px solid #d9694a; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; box-shadow:1.5px 2px 0 #d9694a;">登出</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="og-login-step-2" style="display:none; flex-direction:column; gap:12px;">
+        <div style="font-size:13px; font-weight:700; color:#5a4636; display:flex; justify-content:space-between; align-items:center;">
+          <span id="og-login-provider-title">OAuth 授权流程</span>
+          <span id="og-login-back-btn" style="cursor:pointer; font-size:11px; color:#5fb0b7; text-decoration:underline;">&lt; 返回</span>
+        </div>
+        <p id="og-login-status" style="font-size:12px; margin:0; line-height:1.4; color:#ff8c42;">⏳ 正在连接登录进程...</p>
+        
+        <div id="og-login-link-box" style="display:none; background:#fff; border:2px solid #5a4636; border-radius:10px; padding:10px; font-size:12px;">
+          <div style="font-weight:700; color:#ff8c42; margin-bottom:4px;">第一步: 点击打开以下授权网页</div>
+          <a id="og-login-oauth-url" href="#" target="_blank" style="color:#5fb0b7; font-weight:700; text-decoration:underline; word-break:break-all;">打开授权页面</a>
+        </div>
+
+        <div id="og-login-code-box" style="display:none; display:flex; flex-direction:column; gap:6px;">
+          <div style="font-size:12px; font-weight:700; color:#ff8c42;">第二步: 将授权获取的代码粘贴到下方并提交</div>
+          <div style="display:flex; gap:6px;">
+            <input id="og-login-verification-code" type="text" placeholder="输入 Verification Code" style="flex:1; border:2.5px solid #5a4636; border-radius:10px; padding:8px; font-size:12.5px; outline:none; background:#fff;">
+            <button id="og-login-submit-code" style="cursor:pointer; background:#5fb0b7; color:#fff; border:2.5px solid #5a4636; border-radius:10px; padding:0 14px; font-size:12.5px; font-weight:700; box-shadow:2px 2px 0 #5a4636;">提交</button>
+          </div>
+        </div>
+
+        <pre id="og-login-console" style="margin:0; background:#222; color:#9ff; border:2px solid #5a4636; border-radius:8px; padding:8px; font-size:10px; font-family:ui-monospace,Menlo,monospace; max-height:100px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;"></pre>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
