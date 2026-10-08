@@ -13,7 +13,7 @@ PORT=3000
 ```
 
 - Claude API key 填在 `ANTHROPIC_API_KEY`；OpenAI API key 填在 `CODEX_API_KEY`，用于本项目的 `codex exec` 调用。
-- 已通过 CLI 账户登录时，可以留空对应 key。网页检测到本地凭据时显示「尚未验证授权」；任务返回认证错误时显示「授权失效」。重新授权后可重试任务。
+- 已通过 CLI 账户登录时，可以留空对应 key。CLI 确认本机账号登录后显示「已登录（本机账号）」；仅配置 API key 时显示「等待首次请求验证」。实际请求返回认证错误时显示「授权失效」。
 - 执行 `npm ci` 和 `npm start`，打开 http://localhost:3000，在「模型与登录」选择服务商。修改 `.env` 后重启服务。
 - 找不到 CLI 时，把 `CLAUDE_BIN` / `CODEX_BIN` 改成可执行文件完整路径；带空格的路径加双引号。Windows 若命令只有 `.cmd` 启动器，需指定实际可执行文件或在 WSL 中运行。
 - 系统环境变量优先于 `.env`；Claude 环境变量 key 优先于旧的 `~/.virtual-office/config.json` 中的 `apiKey`。

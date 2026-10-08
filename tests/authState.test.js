@@ -19,3 +19,15 @@ test('ordinary process errors do not mark authorization invalid', () => {
   expect(recordAuthError('claude', 'spawn ENOENT')).toBe(false);
   expect(getAuthState('claude', true)).toBe('unverified');
 });
+
+test('CLI confirmed login is distinct from an untested key', () => {
+  expect(getAuthState('codex', true, true)).toBe('signed_in');
+  expect(getAuthState('claude', true, false)).toBe('unverified');
+});
+
+test('an observed authentication error overrides local login until reauthorization', () => {
+  recordAuthError('codex', 'API Error: 401');
+  expect(getAuthState('codex', true, true)).toBe('invalid');
+  clearAuthError('codex');
+  expect(getAuthState('codex', true, true)).toBe('signed_in');
+});

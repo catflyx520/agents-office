@@ -244,7 +244,7 @@ class Office {
       });
 
       for (const provider of ['claude', 'codex']) {
-        const state = data[provider].state || (data[provider].loggedIn ? 'unverified' : 'missing');
+        const state = data[provider].state || (data[provider].loggedIn ? 'signed_in' : 'missing');
         this._renderAuthState(provider, state);
       }
     });
@@ -290,7 +290,7 @@ class Office {
       consoleEl.textContent += `\n[System] 登录进程已退出，代码: ${e.detail.code}\n`;
       consoleEl.scrollTop = consoleEl.scrollHeight;
       $('og-login-status').textContent = e.detail.code === 0
-        ? '✅ 登录流程已完成，无需再提交验证码。请返回并重试消息。'
+        ? '✅ 登录成功，无需再提交验证码。点击「返回」即可继续使用。'
         : '❌ 登录流程未完成，请返回后重新连接 / 授权。';
       this.ws.send({ type: 'get_auth_status' });
     });
@@ -312,7 +312,7 @@ class Office {
       $('og-login-link-box').style.display = 'none';
       $('og-login-submit-code').disabled = true;
       $('og-login-status').textContent = status === 'completed'
-        ? '✅ 登录流程已完成，无需再提交验证码。请返回并重试消息。'
+        ? '✅ 登录成功，无需再提交验证码。点击「返回」即可继续使用。'
         : '登录流程已结束，请返回后重新连接 / 授权。';
       this.ws.send({ type: 'get_auth_status' });
     });
@@ -323,9 +323,11 @@ class Office {
     const button = $(`og-btn-login-${provider}`);
     if (!el || !button) return;
     el.textContent = state === 'invalid' ? '🔴 授权失效，请重新授权或检查 key'
-      : state === 'unverified' ? '🟡 检测到本地凭据，尚未验证授权'
+      : state === 'signed_in' ? '🟢 已登录（本机账号）'
+      : state === 'unverified' ? '🟡 已配置 API key，等待首次请求验证'
       : '⚪ 未授权，请连接账号或配置 key';
-    button.textContent = state === 'invalid' ? '重新授权' : '连接 / 授权';
+    el.title = state === 'signed_in' ? 'CLI 已确认本机登录状态；请求若返回认证错误，将提示重新授权。' : '';
+    button.textContent = state === 'invalid' ? '重新授权' : state === 'signed_in' ? '重新登录' : '连接 / 授权';
   }
 
   _onAgents(agents) {

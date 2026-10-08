@@ -301,19 +301,19 @@ function handleMessage(ws, wss, raw, agentsDir) {
         let claudeStatus = { loggedIn: false, email: '' };
         try {
           const info = JSON.parse(stdout);
-          claudeStatus.loggedIn = !!info.loggedIn;
+          claudeStatus.loggedIn = !err && !!info.loggedIn;
           claudeStatus.email = info.email || '';
         } catch {}
 
         exec(`"${process.env.CODEX_BIN || 'codex'}" login status`, (err2, stdout2, stderr2) => {
           let codexStatus = { loggedIn: false };
           const combined = (stdout2 || '') + (stderr2 || '');
-          if (combined.includes('Logged in')) {
+          if (!err2 && combined.includes('Logged in')) {
             codexStatus.loggedIn = true;
           }
 
-          claudeStatus.state = getAuthState('claude', claudeStatus.loggedIn || !!process.env.ANTHROPIC_API_KEY || !!getConfig('apiKey'));
-          codexStatus.state = getAuthState('codex', codexStatus.loggedIn || !!process.env.CODEX_API_KEY);
+          claudeStatus.state = getAuthState('claude', claudeStatus.loggedIn || !!process.env.ANTHROPIC_API_KEY || !!getConfig('apiKey'), claudeStatus.loggedIn);
+          codexStatus.state = getAuthState('codex', codexStatus.loggedIn || !!process.env.CODEX_API_KEY, codexStatus.loggedIn);
           send(ws, {
             type: 'auth_status_result',
             activeProvider: getConfig('activeProvider') || 'claude',
@@ -404,7 +404,7 @@ function handleMessage(ws, wss, raw, agentsDir) {
       proc.on('close', (code) => {
         if (!finishLogin(state, proc, code)) return;
         if (code === 0) clearAuthError(provider);
-        send(ws, { type: 'login_close', code });
+        send(ws, { type: 'login_close', code, provider });
         console.log(`[Auth] Interactive login process exited with code ${code}`);
       });
       break;

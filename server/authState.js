@@ -4,8 +4,9 @@ function recordAuthError(provider, text) {
   invalid.add(provider);
   return true;
 }
-function getAuthState(provider, hasCredentials) {
+function getAuthState(provider, hasCredentials, loggedIn = false) {
   if (invalid.has(provider)) return 'invalid';
+  if (loggedIn) return 'signed_in';
   return hasCredentials ? 'unverified' : 'missing';
 }
 function clearAuthError(provider) { invalid.delete(provider); }
