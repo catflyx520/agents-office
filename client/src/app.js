@@ -274,16 +274,46 @@ class Office {
       consoleEl.scrollTop = consoleEl.scrollHeight;
     });
     this.ws.addEventListener('login_url', (e) => {
+      if (!this.loginInProgress) return;
       $('og-login-status').textContent = '👉 请点击下方链接在浏览器中授权：';
       $('og-login-oauth-url').href = e.detail.url;
       $('og-login-link-box').style.display = 'block';
       $('og-login-code-box').style.display = 'flex';
     });
     this.ws.addEventListener('login_close', (e) => {
+      this.loginInProgress = false;
+      $('og-login-code-box').style.display = 'none';
+      $('og-login-link-box').style.display = 'none';
+      $('og-login-submit-code').disabled = true;
+      $('og-login-verification-code').value = '';
       const consoleEl = $('og-login-console');
       consoleEl.textContent += `\n[System] 登录进程已退出，代码: ${e.detail.code}\n`;
       consoleEl.scrollTop = consoleEl.scrollHeight;
-      $('og-login-status').textContent = `🏁 进程已退出，返回值: ${e.detail.code}`;
+      $('og-login-status').textContent = e.detail.code === 0
+        ? '✅ 登录流程已完成，无需再提交验证码。请返回并重试消息。'
+        : '❌ 登录流程未完成，请返回后重新连接 / 授权。';
+      this.ws.send({ type: 'get_auth_status' });
+    });
+    this.ws.addEventListener('login_code_result', (e) => {
+      const status = e.detail.status;
+      if (status === 'submitted') {
+        if (this.loginInProgress) $('og-login-status').textContent = '⏳ 验证码已提交，等待授权结果…';
+        return;
+      }
+      if (status === 'invalid') {
+        if (this.loginInProgress) {
+          $('og-login-submit-code').disabled = false;
+          $('og-login-status').textContent = '请粘贴单行验证码后重新提交。';
+        }
+        return;
+      }
+      this.loginInProgress = false;
+      $('og-login-code-box').style.display = 'none';
+      $('og-login-link-box').style.display = 'none';
+      $('og-login-submit-code').disabled = true;
+      $('og-login-status').textContent = status === 'completed'
+        ? '✅ 登录流程已完成，无需再提交验证码。请返回并重试消息。'
+        : '登录流程已结束，请返回后重新连接 / 授权。';
       this.ws.send({ type: 'get_auth_status' });
     });
   }
@@ -1054,6 +1084,9 @@ class Office {
     });
 
     const startOauth = (provider) => {
+      this.loginInProgress = true;
+      $('og-login-submit-code').disabled = false;
+      $('og-login-verification-code').value = '';
       $('og-login-step-1').style.display = 'none';
       $('og-login-step-2').style.display = 'flex';
       $('og-login-provider-title').textContent = `${provider === 'codex' ? 'Codex' : 'Claude'} OAuth 授权流程`;
@@ -1078,8 +1111,10 @@ class Office {
       $('og-login-step-2').style.display = 'none';
     };
     $('og-login-submit-code').onclick = () => {
+      if (!this.loginInProgress || $('og-login-submit-code').disabled) return;
       const code = $('og-login-verification-code').value.trim();
       if (!code) return;
+      $('og-login-submit-code').disabled = true;
       this.ws.send({ type: 'submit_login_code', code });
       $('og-login-verification-code').value = '';
     };

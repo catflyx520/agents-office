@@ -10,6 +10,7 @@ const { setLocationByZip } = require('./weather');
 const { getSession, setSession } = require('./sessionStore');
 const { saveConfig, getConfig } = require('./configStore');
 const { getAuthState, clearAuthError } = require('./authState');
+const { finishLogin, submitLoginCode } = require('./loginProcess');
 
 function listAgentsWithSession(dir) {
   return listAgents(dir).map(agent => ({
@@ -372,10 +373,12 @@ function handleMessage(ws, wss, raw, agentsDir) {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       state.loginProc = proc;
+      state.loginExitCode = null;
       console.log(`[Auth] Started interactive login process for ${provider} (pid=${proc.pid})`);
 
       let buffer = '';
       proc.stdout.on('data', (d) => {
+        if (state.loginProc !== proc) return;
         const text = d.toString();
         send(ws, { type: 'login_stdout', text });
         buffer += text;
@@ -388,25 +391,32 @@ function handleMessage(ws, wss, raw, agentsDir) {
         }
       });
       proc.stderr.on('data', (d) => {
+        if (state.loginProc !== proc) return;
         send(ws, { type: 'login_stdout', text: d.toString() });
       });
+      proc.stdin.on('error', () => {
+        if (state.loginProc === proc) send(ws, { type: 'login_code_result', status: 'inactive' });
+      });
+      proc.on('error', () => {
+        if (!finishLogin(state, proc, -1)) return;
+        send(ws, { type: 'login_close', code: -1 });
+      });
       proc.on('close', (code) => {
+        if (!finishLogin(state, proc, code)) return;
         if (code === 0) clearAuthError(provider);
         send(ws, { type: 'login_close', code });
-        state.loginProc = null;
         console.log(`[Auth] Interactive login process exited with code ${code}`);
       });
       break;
     }
 
-    case 'submit_login_code':
-      if (state.loginProc) {
-        console.log(`[Auth] Submitting verification code to stdin...`);
-        state.loginProc.stdin.write(msg.code + '\n');
-      } else {
-        send(ws, { type: 'login_stdout', text: 'Error: No active login process found.\n' });
-      }
+    case 'submit_login_code': {
+      const status = submitLoginCode(state, msg.code, () => {
+        send(ws, { type: 'login_code_result', status: 'inactive' });
+      });
+      send(ws, { type: 'login_code_result', status });
       break;
+    }
 
     case 'set_mode':
       state.mode = msg.mode;
