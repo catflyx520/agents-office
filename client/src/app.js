@@ -243,19 +243,14 @@ class Office {
         r.checked = (r.value === data.activeProvider);
       });
 
-      const claudeStatusEl = $('og-status-claude');
-      if (data.claude.loggedIn) {
-        claudeStatusEl.innerHTML = `🟢 已登录 <span style="font-size:10px; color:#5fb0b7;">(${data.claude.email})</span>`;
-      } else {
-        claudeStatusEl.innerHTML = `🔴 未登录`;
+      for (const provider of ['claude', 'codex']) {
+        const state = data[provider].state || (data[provider].loggedIn ? 'unverified' : 'missing');
+        this._renderAuthState(provider, state);
       }
-
-      const codexStatusEl = $('og-status-codex');
-      if (data.codex.loggedIn) {
-        codexStatusEl.innerHTML = `🟢 已登录 <span style="font-size:10px; color:#5fb0b7;">(ChatGPT)</span>`;
-      } else {
-        codexStatusEl.innerHTML = `🔴 未登录`;
-      }
+    });
+    this.ws.addEventListener('auth_state_changed', (e) => {
+      this._renderAuthState(e.detail.provider, e.detail.state);
+      this._toast('授权失效：请在「模型与登录」重新授权；使用 API key 时请检查 .env。');
     });
     this.ws.addEventListener('switch_provider_result', (e) => {
       if (e.detail.success) {
@@ -291,6 +286,16 @@ class Office {
       $('og-login-status').textContent = `🏁 进程已退出，返回值: ${e.detail.code}`;
       this.ws.send({ type: 'get_auth_status' });
     });
+  }
+
+  _renderAuthState(provider, state) {
+    const el = $(`og-status-${provider}`);
+    const button = $(`og-btn-login-${provider}`);
+    if (!el || !button) return;
+    el.textContent = state === 'invalid' ? '🔴 授权失效，请重新授权或检查 key'
+      : state === 'unverified' ? '🟡 检测到本地凭据，尚未验证授权'
+      : '⚪ 未授权，请连接账号或配置 key';
+    button.textContent = state === 'invalid' ? '重新授权' : '连接 / 授权';
   }
 
   _onAgents(agents) {

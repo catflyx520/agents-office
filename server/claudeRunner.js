@@ -2,6 +2,7 @@
 const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
 const { getConfig } = require('./configStore');
+const { recordAuthError } = require('./authState');
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
 
@@ -78,6 +79,12 @@ function spawnAgent(agentConfig, message, onChunk) {
   const label = agentConfig.name || agentConfig.id || 'agent';
   const agentId = agentConfig.id || label;
   const startTime = Date.now();
+  const activeProvider = getConfig('activeProvider') || 'claude';
+  const reportAuthError = (text) => {
+    if (recordAuthError(activeProvider, text)) {
+      logBus.emit('auth', { provider: activeProvider, state: 'invalid' });
+    }
+  };
   const log = (...a) => {
     const line = a.map(x => (typeof x === 'string' ? x : String(x))).join(' ');
     console.log(`[agent:${label}]`, line);
@@ -114,7 +121,16 @@ function spawnAgent(agentConfig, message, onChunk) {
     lineCount++;
     // 打出每行的原始类型（assistant/result/system/user 等），看清 agent 在跑工具还是在回话
     let rawType = '?';
-    try { rawType = JSON.parse(line).type || '?'; } catch { /* 非 JSON 行忽略 */ }
+    try {
+      const event = JSON.parse(line);
+      rawType = event.type || '?';
+      if (event.is_error || event.error || ['error', 'turn.failed'].includes(rawType)) reportAuthError(line);
+      // Some CLI versions return authentication failures as assistant text.
+      const texts = event.message?.content || [];
+      for (const part of texts) {
+        if (/^(?:Failed to authenticate\.|API Error: 401|Please run \/login)/i.test(part.text || '')) reportAuthError(part.text);
+      }
+    } catch { /* 非 JSON 行忽略 */ }
 
     const chunk = parseStreamChunk(line);
     if (!chunk) {
@@ -137,7 +153,6 @@ function spawnAgent(agentConfig, message, onChunk) {
   };
 
   const launch = (resumeId) => {
-    const activeProvider = getConfig('activeProvider') || 'claude';
     let bin, args;
 
     if (activeProvider === 'codex') {
@@ -225,6 +240,7 @@ function spawnAgent(agentConfig, message, onChunk) {
     proc.stderr.on('data', (data) => {
       lastActivity = Date.now();
       const text = data.toString();
+      reportAuthError(text);
       // 探测 resume 失败：CLI 会输出 "No conversation found with session ID"
       if (/no conversation found/i.test(text)) {
         resumeFailed = true;

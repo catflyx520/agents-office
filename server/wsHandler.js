@@ -9,6 +9,7 @@ const { buildDelegationEvents, buildCompleteEvent } = require('./animController'
 const { setLocationByZip } = require('./weather');
 const { getSession, setSession } = require('./sessionStore');
 const { saveConfig, getConfig } = require('./configStore');
+const { getAuthState, clearAuthError } = require('./authState');
 
 function listAgentsWithSession(dir) {
   return listAgents(dir).map(agent => ({
@@ -310,6 +311,8 @@ function handleMessage(ws, wss, raw, agentsDir) {
             codexStatus.loggedIn = true;
           }
 
+          claudeStatus.state = getAuthState('claude', claudeStatus.loggedIn || !!process.env.ANTHROPIC_API_KEY || !!getConfig('apiKey'));
+          codexStatus.state = getAuthState('codex', codexStatus.loggedIn || !!process.env.CODEX_API_KEY);
           send(ws, {
             type: 'auth_status_result',
             activeProvider: getConfig('activeProvider') || 'claude',
@@ -388,6 +391,7 @@ function handleMessage(ws, wss, raw, agentsDir) {
         send(ws, { type: 'login_stdout', text: d.toString() });
       });
       proc.on('close', (code) => {
+        if (code === 0) clearAuthError(provider);
         send(ws, { type: 'login_close', code });
         state.loginProc = null;
         console.log(`[Auth] Interactive login process exited with code ${code}`);

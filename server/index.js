@@ -48,6 +48,7 @@ function broadcastToClients(obj) {
 
 // 把 agent 运行日志广播给所有客户端的「日志台」
 logBus.on('line', (entry) => broadcastToClients({ type: 'log', ...entry }));
+logBus.on('auth', (entry) => broadcastToClients({ type: 'auth_state_changed', ...entry }));
 
 // 每隔 TOKEN_REPORT_SEC 秒（默认 120）刷新 token 用量：推结构化 usage（给墙上用量牌+明细）
 // 并往日志台播一行汇总。结果缓存到 latestUsage，新连接进来时立刻下发。
