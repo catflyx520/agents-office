@@ -1,3 +1,4 @@
+import { tr, initLanguage, getLanguage } from './i18n.js';
 // client/src/app.js
 // 「小办公室」前端控制器（纯 DOM/SVG，替代原 Phaser 版），接到真实 WebSocket 后端。
 import { WSClient } from './net/WSClient.js';
@@ -13,6 +14,17 @@ const ROW_Y = [390, 640, 890]; // 每一排的「身体中心」y（用于走近
 const $ = (id) => document.getElementById(id);
 
 class Office {
+  _refreshLanguage() {
+    this._renderHeader();
+    this._renderPending();
+    this._renderBoards();
+    this._renderTeam();
+    this._renderCompactLog();
+    if (this.usage) this._renderUsage();
+    if (this.weather) this._onWeather(this.weather);
+    this._renderWindows(new Date());
+    this.ws.send({ type: 'get_auth_status' });
+  }
   constructor() {
     this.ws = new WSClient(`ws://${location.host}`);
     this.agents = [];           // 服务器下发的 agent 列表
@@ -53,26 +65,26 @@ class Office {
     if (!w) return;
     const c = w.code;
     const [emoji, desc] =
-      c === 0 ? ['☀️', '晴'] :
-      c <= 2 ? ['🌤', '多云'] :
-      c === 3 ? ['☁️', '阴'] :
-      c <= 48 ? ['🌫', '雾'] :
-      c <= 57 ? ['🌦', '毛毛雨'] :
-      c <= 67 ? ['🌧', '雨'] :
-      c <= 77 ? ['🌨', '雪'] :
-      c <= 82 ? ['🌧', '阵雨'] :
-      c <= 86 ? ['🌨', '阵雪'] :
-      ['⛈', '雷雨'];
+      c === 0 ? ['☀️', tr("晴")] :
+      c <= 2 ? ['🌤', tr("多云")] :
+      c === 3 ? ['☁️', tr("阴")] :
+      c <= 48 ? ['🌫', tr("雾")] :
+      c <= 57 ? ['🌦', tr("毛毛雨")] :
+      c <= 67 ? ['🌧', tr("雨")] :
+      c <= 77 ? ['🌨', tr("雪")] :
+      c <= 82 ? ['🌧', tr("阵雨")] :
+      c <= 86 ? ['🌨', tr("阵雪")] :
+      ['⛈', tr("雷雨")];
     this.weather = w;
     $('og-weather-emoji').textContent = emoji;
-    $('og-weather-city').textContent = (w.manual ? '📍' : '') + (w.city || '本地');
+    $('og-weather-city').textContent = (w.manual ? '📍' : '') + (w.city || tr("本地"));
     $('og-weather-temp').textContent = `${w.temp}°C`;
-    $('og-weather-desc').textContent = `${desc} · ${w.tempMin}~${w.tempMax}° · 湿度${w.humidity}%`;
+    $('og-weather-desc').textContent = `${desc} · ${w.tempMin}~${w.tempMax}${tr("° · 湿度")}${w.humidity}%`;
     const board = $('og-board-weather');
     board.style.display = 'block';
-    board.title = `${w.city} ${desc} ${w.temp}°C（${w.tempMin}~${w.tempMax}°）· 湿度 ${w.humidity}% · 风速 ${w.wind}km/h`
-      + `\n定位：${w.manual ? `手动邮编 ${w.zip}` : '按 IP 自动'} · 更新于 ${new Date(w.ts).toLocaleTimeString('zh-CN')}`
-      + '\n点击可设置邮编位置';
+    board.title = `${w.city} ${desc} ${w.temp}°C（${w.tempMin}~${w.tempMax}${tr("°）· 湿度 ")}${w.humidity}${tr("% · 风速 ")}${w.wind}km/h`
+      + `${tr("\n定位：")}${w.manual ? `${tr("手动邮编")} ${w.zip}` : tr("按 IP 自动")}${tr(" · 更新于 ")}${new Date(w.ts).toLocaleTimeString(getLanguage() === 'en' ? 'en-US' : 'zh-CN')}`
+      + tr("\n点击可设置邮编位置");
   }
 
   // 墙上时钟：指针跟随真实时间，每秒刷新；窗景每分钟按时段刷新
@@ -101,17 +113,17 @@ class Office {
     if (clock) {
       clock.style.cursor = 'pointer';
       clock.onclick = () => {
-        const v = window.prompt('测试窗景：输入时间（如 20:30 / 6:00），留空恢复真实时间', '');
+        const v = window.prompt(tr("测试窗景：输入时间（如 20:30 / 6:00），留空恢复真实时间"), '');
         if (v === null) return;
         const m = v.trim().match(/^(\d{1,2}):(\d{2})$/);
         if (m) {
           const d = new Date();
           d.setHours(Number(m[1]), Number(m[2]));
           this._winFakeTime = d;
-          this._toast(`🕐 窗景已切到 ${v.trim()}（测试模式，点时钟留空恢复）`);
+          this._toast(`${tr("🕐 窗景已切到 ")}${v.trim()}${tr("（测试模式，点时钟留空恢复）")}`);
         } else {
           this._winFakeTime = null;
-          this._toast('🕐 窗景已恢复真实时间');
+          this._toast(tr("🕐 窗景已恢复真实时间"));
         }
         this._winForce = true;
       };
@@ -168,7 +180,7 @@ class Office {
     $('og-win2-city').style.filter = sc.city;
     $('og-win2-lights').style.display = sc.lights ? 'block' : 'none';
 
-    const label = { dawn: '🌅 清晨', day: '☀️ 白天', dusk: '🌇 黄昏', night: '🌙 夜晚' }[phase];
+    const label = { dawn: tr("🌅 清晨"), day: tr("☀️ 白天"), dusk: tr("🌇 黄昏"), night: tr("🌙 夜晚") }[phase];
     win1.title = `${label} · ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
     if (win2) win2.title = win1.title;
   }
@@ -227,7 +239,7 @@ class Office {
     });
     this.ws.addEventListener('weather', (e) => this._onWeather(e.detail.weather));
     this.ws.addEventListener('office_name', (e) => {
-      const name = e.detail.name || '小办公室';
+      const name = e.detail.name || tr("小办公室");
       $('og-office-name').textContent = name;
       document.title = `${name} · Virtual Office`;
     });
@@ -250,22 +262,22 @@ class Office {
     });
     this.ws.addEventListener('auth_state_changed', (e) => {
       this._renderAuthState(e.detail.provider, e.detail.state);
-      this._toast('授权失效：请在「模型与登录」重新授权；使用 API key 时请检查 .env。');
+      this._toast(tr("授权失效：请在「模型与登录」重新授权；使用 API key 时请检查 .env。"));
     });
     this.ws.addEventListener('switch_provider_result', (e) => {
       if (e.detail.success) {
-        this._toast(`✅ 已成功切换首选引擎为: ${e.detail.provider === 'codex' ? 'Codex' : 'Claude'}`);
+        this._toast(`${tr("✅ 已成功切换首选引擎为: ")}${e.detail.provider === 'codex' ? 'Codex' : 'Claude'}`);
         this.ws.send({ type: 'get_auth_status' });
       } else {
-        this._toast(`❌ 切换失败: ` + e.detail.error);
+        this._toast(tr("❌ 切换失败: ") + e.detail.error);
       }
     });
     this.ws.addEventListener('logout_result', (e) => {
       if (e.detail.success) {
-        this._toast(`✅ 已成功登出 ${e.detail.provider === 'codex' ? 'Codex' : 'Claude'}`);
+        this._toast(`${tr("✅ 已成功登出 ")}${e.detail.provider === 'codex' ? 'Codex' : 'Claude'}`);
         this.ws.send({ type: 'get_auth_status' });
       } else {
-        this._toast(`❌ 登出失败: ` + e.detail.error);
+        this._toast(tr("❌ 登出失败: ") + e.detail.error);
       }
     });
     this.ws.addEventListener('login_stdout', (e) => {
@@ -275,7 +287,7 @@ class Office {
     });
     this.ws.addEventListener('login_url', (e) => {
       if (!this.loginInProgress) return;
-      $('og-login-status').textContent = '👉 请点击下方链接在浏览器中授权：';
+      $('og-login-status').textContent = tr("👉 请点击下方链接在浏览器中授权：");
       $('og-login-oauth-url').href = e.detail.url;
       $('og-login-link-box').style.display = 'block';
       $('og-login-code-box').style.display = 'flex';
@@ -287,23 +299,24 @@ class Office {
       $('og-login-submit-code').disabled = true;
       $('og-login-verification-code').value = '';
       const consoleEl = $('og-login-console');
-      consoleEl.textContent += `\n[System] 登录进程已退出，代码: ${e.detail.code}\n`;
+      consoleEl.textContent += `${tr("\n[System] 登录进程已退出，代码: ")}${e.detail.code}
+`;
       consoleEl.scrollTop = consoleEl.scrollHeight;
       $('og-login-status').textContent = e.detail.code === 0
-        ? '✅ 登录成功，无需再提交验证码。点击「返回」即可继续使用。'
-        : '❌ 登录流程未完成，请返回后重新连接 / 授权。';
+        ? tr("✅ 登录成功，无需再提交验证码。点击「返回」即可继续使用。")
+        : tr("❌ 登录流程未完成，请返回后重新连接 / 授权。");
       this.ws.send({ type: 'get_auth_status' });
     });
     this.ws.addEventListener('login_code_result', (e) => {
       const status = e.detail.status;
       if (status === 'submitted') {
-        if (this.loginInProgress) $('og-login-status').textContent = '⏳ 验证码已提交，等待授权结果…';
+        if (this.loginInProgress) $('og-login-status').textContent = tr("⏳ 验证码已提交，等待授权结果…");
         return;
       }
       if (status === 'invalid') {
         if (this.loginInProgress) {
           $('og-login-submit-code').disabled = false;
-          $('og-login-status').textContent = '请粘贴单行验证码后重新提交。';
+          $('og-login-status').textContent = tr("请粘贴单行验证码后重新提交。");
         }
         return;
       }
@@ -312,8 +325,8 @@ class Office {
       $('og-login-link-box').style.display = 'none';
       $('og-login-submit-code').disabled = true;
       $('og-login-status').textContent = status === 'completed'
-        ? '✅ 登录成功，无需再提交验证码。点击「返回」即可继续使用。'
-        : '登录流程已结束，请返回后重新连接 / 授权。';
+        ? tr("✅ 登录成功，无需再提交验证码。点击「返回」即可继续使用。")
+        : tr("登录流程已结束，请返回后重新连接 / 授权。");
       this.ws.send({ type: 'get_auth_status' });
     });
   }
@@ -322,12 +335,12 @@ class Office {
     const el = $(`og-status-${provider}`);
     const button = $(`og-btn-login-${provider}`);
     if (!el || !button) return;
-    el.textContent = state === 'invalid' ? '🔴 授权失效，请重新授权或检查 key'
-      : state === 'signed_in' ? '🟢 已登录（本机账号）'
-      : state === 'unverified' ? '🟡 已配置 API key，等待首次请求验证'
-      : '⚪ 未授权，请连接账号或配置 key';
-    el.title = state === 'signed_in' ? 'CLI 已确认本机登录状态；请求若返回认证错误，将提示重新授权。' : '';
-    button.textContent = state === 'invalid' ? '重新授权' : state === 'signed_in' ? '重新登录' : '连接 / 授权';
+    el.textContent = state === 'invalid' ? tr("🔴 授权失效，请重新授权或检查 key")
+      : state === 'signed_in' ? tr("🟢 已登录（本机账号）")
+      : state === 'unverified' ? tr("🟡 已配置 API key，等待首次请求验证")
+      : tr("⚪ 未授权，请连接账号或配置 key");
+    el.title = state === 'signed_in' ? tr("CLI 已确认本机登录状态；请求若返回认证错误，将提示重新授权。") : '';
+    button.textContent = state === 'invalid' ? tr("重新授权") : state === 'signed_in' ? tr("重新登录") : tr("连接 / 授权");
   }
 
   _onAgents(agents) {
@@ -429,7 +442,7 @@ class Office {
   _onPlanPreview(d) {
     const mid = d.agentId || 'pm'; // 计划可能来自 PM，也可能来自其他管理者
     const lines = d.plan.tasks.map(t => `  · ${this._name(t.agent)}: ${t.task.slice(0, 50)}`).join('\n');
-    this._hist(mid).push({ role: 'assistant', text: `我建议这样拆分（先确认再执行）：\n${lines}`, isPlan: true, planAgentId: mid, ts: Date.now() });
+    this._hist(mid).push({ role: 'assistant', text: `${tr("我建议这样拆分（先确认再执行）：\n")}${lines}`, isPlan: true, planAgentId: mid, ts: Date.now() });
     this.pending[mid] = false;
     this._saveHistories();
     if (this.activeId === mid) this._renderChat();
@@ -455,8 +468,8 @@ class Office {
     if (!slot) return;
     const { bub, ringwrap } = slot;
     if (bub) {
-      if (status === 'working') { bub.style.display = 'inline-block'; bub.textContent = label || '工作中…'; bub.style.background = '#ffe3b0'; bub.style.color = '#b9791a'; }
-      else if (status === 'done') { bub.style.display = 'inline-block'; bub.textContent = '完成 ✓'; bub.style.background = '#cdeedd'; bub.style.color = '#2f8a5b'; }
+      if (status === 'working') { bub.style.display = 'inline-block'; bub.textContent = label || tr("工作中…"); bub.style.background = '#ffe3b0'; bub.style.color = '#b9791a'; }
+      else if (status === 'done') { bub.style.display = 'inline-block'; bub.textContent = tr("完成 ✓"); bub.style.background = '#cdeedd'; bub.style.color = '#2f8a5b'; }
       else { bub.style.display = 'none'; }
     }
     if (ringwrap) { ringwrap.style.display = status === 'working' ? 'block' : 'none'; ringwrap.style.animation = status === 'working' ? 'spin 1s linear infinite' : 'none'; }
@@ -480,19 +493,19 @@ class Office {
   // ── 聊天面板渲染 ──────────────────────────────────────────
   _renderHeader() {
     const a = this.byId[this.activeId];
-    $('og-active-name').textContent = a ? a.name : '选择一位同事';
-    $('og-active-role').textContent = a ? (a.role || '') : '走近并按 E 开始对话';
+    $('og-active-name').textContent = a ? a.name : tr("选择一位同事");
+    $('og-active-role').textContent = a ? (a.role || '') : tr("走近并按 E 开始对话");
     const av = $('og-active-avatar');
     av.textContent = a ? this._initials(a) : '··';
     av.style.background = (a && a.accent) || '#ffce6b';
-    $('og-input').placeholder = a ? `和 ${a.name} 说点什么… (Enter 发送 · Shift+Enter 换行 · Ctrl+Enter 全新会话)` : '和同事说点什么… (Enter 发送 · Shift+Enter 换行 · Ctrl+Enter 全新会话)';
+    $('og-input').placeholder = a ? `${tr("和 ")}${a.name}${tr(" 说点什么… (Enter 发送 · Shift+Enter 换行 · Ctrl+Enter 全新会话)")}` : tr("和同事说点什么… (Enter 发送 · Shift+Enter 换行 · Ctrl+Enter 全新会话)");
 
     const sessEl = $('og-active-session');
     if (sessEl) {
       if (a && a.sessionId) {
         sessEl.style.display = 'block';
         const su = this._sessionUsage(a.id, a.sessionId);
-        const todayTxt = su && su.today.billable ? ` · 今日 ${this._fmtTok(su.today.billable)}` : '';
+        const todayTxt = su && su.today.billable ? `${tr(" · 今日 ")}${this._fmtTok(su.today.billable)}` : '';
         const ce = this._compactEntryFor(a.id, a.sessionId);
         const genTxt = ce ? ` ♻️${ce.gen}` : ''; // 该会话由压缩而来 → 标记第几代
         sessEl.textContent = `Session: ${a.sessionId.slice(0, 8)}${genTxt}${todayTxt}`;
@@ -532,14 +545,14 @@ class Office {
     fill.style.width = Math.max(3, pct) + '%';
     fill.style.background = pct >= 90 ? '#d9534f' : pct >= 60 ? '#ff8c42' : '#7bc47f';
     $('og-compact-progress-label').textContent = `${this._fmtTok(cur)} / ${this.autoCompactK}k`;
-    box.title = `当前会话累计计费 ${this._fmtTok(cur)}，达到 ${this.autoCompactK}k 时自动压缩（${pct.toFixed(0)}%）`;
+    box.title = `${tr("当前会话累计计费 ")}${this._fmtTok(cur)}${tr("，达到 ")}${this.autoCompactK}${tr("k 时自动压缩（")}${pct.toFixed(0)}%）`;
   }
 
   _compactActive() {
     const a = this.byId[this.activeId];
-    if (!a || !a.sessionId) { this._toast('该同事还没有会话，无需压缩'); return; }
-    if (this.pending[a.id]) { this._toast(`${a.name} 正在工作中，等他忙完再压缩`); return; }
-    if (!window.confirm(`把 ${a.name} 的当前会话压缩成摘要并开新会话？\n（长历史 → 一段摘要，之后聊天不再背旧账）`)) return;
+    if (!a || !a.sessionId) { this._toast(tr("该同事还没有会话，无需压缩")); return; }
+    if (this.pending[a.id]) { this._toast(`${a.name}${tr(" 正在工作中，等他忙完再压缩")}`); return; }
+    if (!window.confirm(`${tr("把 ")}${a.name}${tr(" 的当前会话压缩成摘要并开新会话？\n（长历史 → 一段摘要，之后聊天不再背旧账）")}`)) return;
     this.ws.send({ type: 'compact', agentId: a.id });
   }
 
@@ -548,12 +561,12 @@ class Office {
     const id = d.agentId;
     const name = this._name(id);
     const push = (text) => { this._hist(id).push({ role: 'assistant', text, ts: Date.now(), sessionId: null }); };
-    if (d.stage === 'summarizing') push(d.auto ? '🗜️ 会话累计用量超过阈值，自动压缩中…（正在总结旧会话）' : '🗜️ 压缩中…（正在总结旧会话）');
-    else if (d.stage === 'seeding') push('🗜️ 摘要完成，正在载入全新会话…');
+    if (d.stage === 'summarizing') push(d.auto ? tr("🗜️ 会话累计用量超过阈值，自动压缩中…（正在总结旧会话）") : tr("🗜️ 压缩中…（正在总结旧会话）"));
+    else if (d.stage === 'seeding') push(tr("🗜️ 摘要完成，正在载入全新会话…"));
     else if (d.stage === 'done') {
       if (this.byId[id]) this.byId[id].sessionId = d.newSessionId;
-      push(`🗜️ 压缩完成！新会话 ${d.newSessionId ? d.newSessionId.slice(0, 8) : '—'}，记忆已载入。\n\n📋 摘要：\n${d.summary || '（无）'}`);
-    } else if (d.stage === 'error') push(`🗜️ 压缩失败：${d.message}`);
+      push(`${tr("🗜️ 压缩完成！新会话 ")}${d.newSessionId ? d.newSessionId.slice(0, 8) : '—'}${tr("，记忆已载入。\n\n📋 摘要：\n")}${d.summary || '（无）'}`);
+    } else if (d.stage === 'error') push(`${tr("🗜️ 压缩失败：")}${d.message}`);
     this._saveHistories();
     if (this.activeId === id) { this._renderChat(); this._renderHeader(); }
   }
@@ -567,12 +580,12 @@ class Office {
 
   _fmtAgo(ms) {
     const s = Math.floor(ms / 1000);
-    if (s < 60) return `${s} 秒前`;
+    if (s < 60) return `${s}${tr(" 秒前")}`;
     const m = Math.floor(s / 60);
-    if (m < 60) return `${m} 分钟前`;
+    if (m < 60) return `${m}${tr(" 分钟前")}`;
     const h = Math.floor(m / 60);
-    if (h < 24) return `${h} 小时 ${m % 60} 分前`;
-    return `${Math.floor(h / 24)} 天前`;
+    if (h < 24) return `${h}${tr(" 小时 ")}${m % 60}${tr(" 分前")}`;
+    return `${Math.floor(h / 24)}${tr(" 天前")}`;
   }
 
   // 悬停 session 徽章时的详情浮层：创建时间/时长、对话数、今日/累计计费、缓存三级分解
@@ -587,21 +600,20 @@ class Office {
     if (su) {
       const t = su.total;
       const fmtDT = (ts) => { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
-      if (t.minTs && t.minTs !== Infinity) html += row('创建于', `${fmtDT(t.minTs)}（${this._fmtAgo(Date.now() - t.minTs)}）`);
-      if (t.maxTs && t.maxTs > 0) html += row('最近活动', this._fmtAgo(Date.now() - t.maxTs));
-      html += row('API 消息', `${t.msgs} 条`);
-      html += row('今日计费', this._fmtTok(su.today.billable));
-      html += row('累计计费', this._fmtTok(t.billable));
+      if (t.minTs && t.minTs !== Infinity) html += row(tr("创建于"), `${fmtDT(t.minTs)}（${this._fmtAgo(Date.now() - t.minTs)}）`);
+      if (t.maxTs && t.maxTs > 0) html += row(tr("最近活动"), this._fmtAgo(Date.now() - t.maxTs));
+      html += row(tr("API 消息"), `${t.msgs}${tr(" 条")}`);
+      html += row(tr("今日计费"), this._fmtTok(su.today.billable));
+      html += row(tr("累计计费"), this._fmtTok(t.billable));
       html += this._tierHtml(t);
     } else {
-      html += '<div style="color:#a8825c;">该会话暂无用量数据（统计约 2 分钟刷新一次）</div>';
+      html += tr("<div style=\"color:#a8825c;\">该会话暂无用量数据（统计约 2 分钟刷新一次）</div>");
     }
     const ce = this._compactEntryFor(a.id, a.sessionId);
     if (ce) {
       const p = n => String(n).padStart(2, '0');
       const d = new Date(ce.ts);
-      html += `<div style="margin-top:7px; padding-top:7px; border-top:2px dashed #f0d9b8; color:#2e7d32; font-weight:600;">♻️ 由压缩而来（第 ${ce.gen} 代）<br>
-        <span style="color:#a8825c; font-weight:600;">${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())} · 前代会话累计 ${ce.billableBefore != null ? this._fmtTok(ce.billableBefore) : '?'} → 摘要 ${ce.summary ? ce.summary.length : 0} 字</span></div>`;
+      html += `${tr("<div style=\"margin-top:7px; padding-top:7px; border-top:2px dashed #f0d9b8; color:#2e7d32; font-weight:600;\">♻️ 由压缩而来（第 ")}${ce.gen}${tr(" 代）<br>\n        <span style=\"color:#a8825c; font-weight:600;\">")}${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}${tr(" · 前代会话累计 ")}${ce.billableBefore != null ? this._fmtTok(ce.billableBefore) : '?'}${tr(" → 摘要 ")}${ce.summary ? ce.summary.length : 0}${tr(" 字</span></div>")}`;
     }
     tip.innerHTML = html;
     document.body.appendChild(tip);
@@ -620,7 +632,7 @@ class Office {
   _renderCompactLog() {
     const list = $('og-compact-log-list');
     const log = [...this.compactLog].reverse(); // 最新在前
-    if (!log.length) { list.innerHTML = '<div style="font-size:14px; color:#a8825c;">还没有压缩记录。聊天框顶部的 🗜️ 压缩按钮可手动压缩，或在顶部设置自动压缩阈值。</div>'; return; }
+    if (!log.length) { list.innerHTML = tr("<div style=\"font-size:14px; color:#a8825c;\">还没有压缩记录。聊天框顶部的 🗜️ 压缩按钮可手动压缩，或在顶部设置自动压缩阈值。</div>"); return; }
     const p = n => String(n).padStart(2, '0');
     list.innerHTML = log.map(e => {
       const d = new Date(e.ts);
@@ -630,16 +642,11 @@ class Office {
       return `<div style="margin-bottom:12px; background:#fff; border:2.5px solid #5a4636; border-radius:12px; box-shadow:2px 2px 0 #5a4636; overflow:hidden;">
         <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; flex-wrap:wrap;">
           <span style="font-size:14px; font-weight:700; color:#5a4636;">${name}</span>
-          <span style="font-size:12px; font-weight:600; color:#fff; background:${e.auto ? '#d9694a' : '#5fb0b7'}; border:1.5px solid #5a4636; border-radius:6px; padding:1px 7px;">${e.auto ? '自动' : '手动'}</span>
-          <span style="font-size:12.5px; color:#a8825c; font-weight:600;">♻️ 第 ${e.gen} 代</span>
-          <span style="font-size:12.5px; color:#a8825c;">压缩前累计 <b style="color:#d9694a;">${before}</b></span>
+          <span style="font-size:12px; font-weight:600; color:#fff; background:${e.auto ? '#d9694a' : '#5fb0b7'}; border:1.5px solid #5a4636; border-radius:6px; padding:1px 7px;">${e.auto ? '自动' : '手动'}${tr("</span>\n          <span style=\"font-size:12.5px; color:#a8825c; font-weight:600;\">♻️ 第 ")}${e.gen}${tr(" 代</span>\n          <span style=\"font-size:12.5px; color:#a8825c;\">压缩前累计 <b style=\"color:#d9694a;\">")}${before}</b></span>
           <span style="flex:1;"></span>
           <span style="font-size:12px; color:#bfa07a;">${when}</span>
         </div>
-        <div style="padding:0 14px 4px; font-size:11.5px; color:#bfa07a;">${(e.oldSid || '?').slice(0, 8)} → ${(e.newSid || '?').slice(0, 8)}</div>
-        <details style="border-top:2px dashed #f0d9b8;">
-          <summary style="cursor:pointer; padding:8px 14px; font-size:12.5px; font-weight:600; color:#5fb0b7;">📋 查看摘要（${e.summary ? e.summary.length : 0} 字）</summary>
-          <div style="padding:4px 14px 12px; font-size:12.5px; color:#5a4636; line-height:1.65; white-space:pre-wrap;">${e.summary || '（无）'}</div>
+        <div style="padding:0 14px 4px; font-size:11.5px; color:#bfa07a;">${(e.oldSid || '?').slice(0, 8)} → ${(e.newSid || '?').slice(0, 8)}${tr("</div>\n        <details style=\"border-top:2px dashed #f0d9b8;\">\n          <summary style=\"cursor:pointer; padding:8px 14px; font-size:12.5px; font-weight:600; color:#5fb0b7;\">📋 查看摘要（")}${e.summary ? e.summary.length : 0}${tr(" 字）</summary>\n          <div style=\"padding:4px 14px 12px; font-size:12.5px; color:#5a4636; line-height:1.65; white-space:pre-wrap;\">")}${e.summary || '（无）'}</div>
         </details>
       </div>`;
     }).join('');
@@ -663,11 +670,12 @@ class Office {
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Today';
+      return getLanguage() === 'zh' ? '今天' : 'Today';
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
+      return getLanguage() === 'zh' ? '昨天' : 'Yesterday';
     } else {
       const options = { weekday: 'long', month: 'long', day: 'numeric' };
+      if (getLanguage() === 'zh') return date.toLocaleDateString('zh-CN', options);
       const dateStr = date.toLocaleDateString('en-US', options);
       
       const day = date.getDate();
@@ -718,7 +726,7 @@ class Office {
         const pill = document.createElement('span');
         pill.className = 'og-session-pill';
         pill.textContent = sessId ? `Session: ${sessId.slice(0, 8)}` : 'Session: Initial';
-        pill.title = sessId ? `会话 ID: ${sessId}` : '初始会话';
+        pill.title = sessId ? `${tr("会话 ID: ")}${sessId}` : tr("初始会话");
         sep.appendChild(pill);
         box.appendChild(sep);
         prevSessionId = sessId;
@@ -769,11 +777,11 @@ class Office {
         row.style.cssText = 'display:flex; gap:8px; margin-top:9px;';
         const ok = document.createElement('div');
         ok.style.cssText = 'cursor:pointer; background:#ff8c42; color:#fff; border:2.5px solid #5a4636; border-radius:11px; padding:7px 14px; font-size:12px; font-weight:600; box-shadow:2px 2px 0 #5a4636;';
-        ok.textContent = '确认执行';
+        ok.textContent = tr("确认执行");
         ok.onclick = () => this._confirmPlan(m);
         const no = document.createElement('div');
         no.style.cssText = 'cursor:pointer; background:#fff; color:#a8825c; border:2.5px solid #5a4636; border-radius:11px; padding:7px 14px; font-size:12px; font-weight:600;';
-        no.textContent = '取消';
+        no.textContent = tr("取消");
         no.onclick = () => this._cancelPlan(m);
         row.append(ok, no);
         wrap.appendChild(row);
@@ -787,7 +795,7 @@ class Office {
       wrap.style.cssText = 'align-self:flex-start;';
       const b = document.createElement('div');
       b.style.cssText = botB + ' opacity:.8;';
-      b.textContent = '⏳ 处理中…';
+      b.textContent = tr("⏳ 处理中…");
       wrap.appendChild(b);
       box.appendChild(wrap);
     }
@@ -798,7 +806,7 @@ class Office {
     m.isPlan = false;
     const mid = m.planAgentId || 'pm';
     const mgr = this.byId[mid];
-    this._hist(mid).push({ role: 'user', text: '确认，开始执行。', ts: Date.now(), sessionId: mgr ? mgr.sessionId : null });
+    this._hist(mid).push({ role: 'user', text: tr("确认，开始执行。"), ts: Date.now(), sessionId: mgr ? mgr.sessionId : null });
     this.pending[mid] = true;
     this._saveHistories();
     this._renderChat();
@@ -808,7 +816,7 @@ class Office {
     m.isPlan = false;
     const mid = m.planAgentId || 'pm';
     const mgr = this.byId[mid];
-    this._hist(mid).push({ role: 'assistant', text: '好的，已取消。', ts: Date.now(), sessionId: mgr ? mgr.sessionId : null });
+    this._hist(mid).push({ role: 'assistant', text: tr("好的，已取消。"), ts: Date.now(), sessionId: mgr ? mgr.sessionId : null });
     this._saveHistories();
     this._renderChat();
   }
@@ -817,7 +825,7 @@ class Office {
   // fresh=true（Shift+Enter）：本条不带历史 session，让 agent 用全新会话处理
   _send(fresh = false) {
     const a = this.byId[this.activeId];
-    if (!a) { this._toast('先走近一位同事再发消息'); return; }
+    if (!a) { this._toast(tr("先走近一位同事再发消息")); return; }
     const input = $('og-input');
     const text = input.value.trim();
     const files = this.attachments.slice();
@@ -832,7 +840,7 @@ class Office {
     this.pending[a.id] = true;
     this._saveHistories();
     this._renderChat();
-    if (fresh) this._toast('🆕 本条使用全新会话（不带之前的记忆）');
+    if (fresh) this._toast(tr("🆕 本条使用全新会话（不带之前的记忆）"));
 
     this.ws.send({ type: 'chat', agentId: a.id, message: text, attachments: files, fresh });
   }
@@ -843,8 +851,8 @@ class Office {
     this.ws.send({ type: 'cancel', agentId: id });
     const msg = this.streamMsg[id];
     const activeAgent = this.byId[id];
-    if (msg) { msg.text = (msg.text + ' …（已取消）').trim(); this.streamMsg[id] = null; }
-    else this._hist(id).push({ role: 'assistant', text: '…（已取消）', ts: Date.now(), sessionId: activeAgent ? activeAgent.sessionId : null });
+    if (msg) { msg.text = (msg.text + tr(" …（已取消）")).trim(); this.streamMsg[id] = null; }
+    else this._hist(id).push({ role: 'assistant', text: tr("…（已取消）"), ts: Date.now(), sessionId: activeAgent ? activeAgent.sessionId : null });
     this.pending[id] = false;
     this._saveHistories();
     this._renderChat();
@@ -860,7 +868,7 @@ class Office {
         const data = await res.json();
         this.attachments.push({ name: data.name, path: data.path });
         this._renderPending();
-      } catch (err) { this._toast('上传失败: ' + err.message); }
+      } catch (err) { this._toast(tr("上传失败: ") + err.message); }
     }
   }
 
@@ -910,11 +918,11 @@ class Office {
       av.textContent = (this.player.name || 'YOU').slice(0, 2).toUpperCase();
       const info = document.createElement('div');
       info.style.cssText = 'flex:1; min-width:0;';
-      info.innerHTML = `<div style="font-size:14px; font-weight:700; color:#5a4636;"></div><div style="font-size:11px; color:#a8825c;">👤 我自己 · 办公室永远的牛马，不可删除</div>`;
+      info.innerHTML = tr("<div style=\"font-size:14px; font-weight:700; color:#5a4636;\"></div><div style=\"font-size:11px; color:#a8825c;\">👤 我自己 · 办公室永远的牛马，不可删除</div>");
       info.children[0].textContent = this.player.name || 'YOU';
       const edit = document.createElement('div');
       edit.style.cssText = 'cursor:pointer; background:#fff; border:2px solid #5a4636; border-radius:9px; padding:5px 10px; font-size:11.5px; font-weight:600; color:#5a4636;';
-      edit.textContent = '编辑';
+      edit.textContent = tr("编辑");
       edit.onclick = () => this._openEdit('__self');
       row.append(av, info, edit);
       list.appendChild(row);
@@ -933,11 +941,11 @@ class Office {
       info.children[1].textContent = `${a.role || ''} · ${a.workDir || ''}`;
       const open = document.createElement('div');
       open.style.cssText = 'cursor:pointer; background:#fde7c8; border:2px solid #5a4636; border-radius:9px; padding:5px 10px; font-size:11.5px; font-weight:600; color:#b9791a;';
-      open.textContent = '对话';
+      open.textContent = tr("对话");
       open.onclick = () => { this.activeId = a.id; this._renderHeader(); this._renderChat(); this._closeTeam(); };
       const edit = document.createElement('div');
       edit.style.cssText = 'cursor:pointer; background:#fff; border:2px solid #5a4636; border-radius:9px; padding:5px 10px; font-size:11.5px; font-weight:600; color:#5a4636;';
-      edit.textContent = '编辑';
+      edit.textContent = tr("编辑");
       edit.onclick = () => this._openEdit(a.id);
       row.append(av, info, open, edit);
       list.appendChild(row);
@@ -953,7 +961,7 @@ class Office {
       const el = $(rid); if (el) el.style.display = isSelf ? 'none' : '';
     });
     if (isSelf) {
-      $('og-edit-title').textContent = '编辑 · 我自己';
+      $('og-edit-title').textContent = tr("编辑 · 我自己");
       $('og-f-name').value = this.player.name || 'YOU';
       $('og-f-accent').value = this.player.accent || '#ff8c42';
       $('og-edit-del').style.display = 'none'; // 我自己不可删
@@ -961,7 +969,7 @@ class Office {
       return;
     }
     const a = id ? this.byId[id] : null;
-    $('og-edit-title').textContent = a ? `编辑 · ${a.name}` : '新增成员';
+    $('og-edit-title').textContent = a ? `${tr("编辑 · ")}${a.name}` : tr("新增成员");
     $('og-f-name').value = a ? (a.name || '') : '';
     $('og-f-role').value = a ? (a.role || '') : '';
     $('og-f-accent').value = (a && a.accent) || '#ff8c42';
@@ -979,13 +987,13 @@ class Office {
     // 我自己：只存名字+颜色到本地，不走服务端
     if (this.editingId === '__self') {
       const name = $('og-f-name').value.trim();
-      if (!name) { this._toast('名字不能为空'); return; }
+      if (!name) { this._toast(tr("名字不能为空")); return; }
       this.player.name = name.slice(0, 12);
       this.player.accent = $('og-f-accent').value;
       this._savePlayer();
       this._applyPlayerBadge();
       this._renderTeam();
-      this._toast(`✅ 已更新，${this.player.name} 继续搬砖`);
+      this._toast(`${tr("✅ 已更新，")}${this.player.name}${tr(" 继续搬砖")}`);
       this._closeEdit();
       return;
     }
@@ -997,7 +1005,7 @@ class Office {
     const model = $('og-f-model').value;
     const codexModel = $('og-f-codex-model').value;
     const systemPrompt = $('og-f-prompt').value.trim();
-    if (!name || !role || !workDir) { this._toast('请填写名字、角色和工作目录'); return; }
+    if (!name || !role || !workDir) { this._toast(tr("请填写名字、角色和工作目录")); return; }
 
     let config;
     const orig = this.editingId && this.byId[this.editingId];
@@ -1006,22 +1014,22 @@ class Office {
     } else {
       const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now();
       config = { id, name, role, accent, workDir, tools: tools.length ? tools : ['Edit', 'Read', 'Bash'], model: model || null, codexModel: codexModel || null, avatar: null,
-        systemPrompt: systemPrompt || `你是 ${role}，负责 ${workDir} 项目。收到任务后先读相关文件再动手，完成后简短汇报。` };
+        systemPrompt: systemPrompt || `${tr("你是 ")}${role}${tr("，负责 ")}${workDir}${tr(" 项目。收到任务后先读相关文件再动手，完成后简短汇报。")}` };
     }
     this.ws.send({ type: 'add_agent', config });
     this._closeEdit();
   }
   _deleteEdit() {
     if (!this.editingId || this.editingId === 'pm' || this.editingId === '__self') return;
-    if (!window.confirm(`确定删除 ${this._name(this.editingId)}？`)) return;
+    if (!window.confirm(`${tr("确定删除 ")}${this._name(this.editingId)}？`)) return;
     this.ws.send({ type: 'delete_agent', agentId: this.editingId });
     this._closeEdit();
   }
   _addAgent() { this._closeTeam(); this._openEdit(null); }
 
   _openLogin() {
-    $('og-status-claude').textContent = '⏳ 正在检测...';
-    $('og-status-codex').textContent = '⏳ 正在检测...';
+    $('og-status-claude').textContent = tr("⏳ 正在检测...");
+    $('og-status-codex').textContent = tr("⏳ 正在检测...");
     this.ws.send({ type: 'get_auth_status' });
     $('og-login-step-1').style.display = 'flex';
     $('og-login-step-2').style.display = 'none';
@@ -1044,7 +1052,7 @@ class Office {
     // 办公室牌子 → 改名
     $('og-office-sign').onclick = () => {
       const cur = $('og-office-name').textContent;
-      const v = window.prompt('给办公室起个新名字（最多 24 字）', cur);
+      const v = window.prompt(tr("给办公室起个新名字（最多 24 字）"), cur);
       if (v === null) return;
       const name = v.trim();
       if (!name || name === cur) return;
@@ -1061,7 +1069,7 @@ class Office {
       const zip = $('og-weather-zip').value.trim();
       const country = $('og-weather-country').value;
       this.ws.send({ type: 'set_location', zip, country });
-      this._toast(zip ? `📍 正在切换到邮编 ${zip}…` : '📍 正在恢复自动定位…');
+      this._toast(zip ? `${tr("📍 正在切换到邮编 ")}${zip}…` : tr("📍 正在恢复自动定位…"));
       $('og-weather-modal').style.display = 'none';
     };
     $('og-weather-save').onclick = saveWeatherLoc;
@@ -1073,7 +1081,7 @@ class Office {
     $('og-autocompact').onchange = (e) => {
       const k = Number(e.target.value) || 0;
       this.ws.send({ type: 'set_autocompact', thresholdK: k });
-      this._toast(k ? `🗜️ 自动压缩已开启：会话累计超 ${k}k 自动压缩` : '🗜️ 自动压缩已关闭');
+      this._toast(k ? `${tr("🗜️ 自动压缩已开启：会话累计超 ")}${k}${tr("k 自动压缩")}` : tr("🗜️ 自动压缩已关闭"));
     };
     $('og-login-btn').onclick = () => this._openLogin();
     $('og-login-close').onclick = () => this._closeLogin();
@@ -1091,8 +1099,8 @@ class Office {
       $('og-login-verification-code').value = '';
       $('og-login-step-1').style.display = 'none';
       $('og-login-step-2').style.display = 'flex';
-      $('og-login-provider-title').textContent = `${provider === 'codex' ? 'Codex' : 'Claude'} OAuth 授权流程`;
-      $('og-login-status').textContent = '⏳ 正在启动登录进程...';
+      $('og-login-provider-title').textContent = `${provider === 'codex' ? 'Codex' : 'Claude'}${tr(" OAuth 授权流程")}`;
+      $('og-login-status').textContent = tr("⏳ 正在启动登录进程...");
       $('og-login-console').textContent = '';
       $('og-login-link-box').style.display = 'none';
       $('og-login-code-box').style.display = 'none';
@@ -1316,7 +1324,7 @@ class Office {
   }
 
   _openUsage(src) {
-    if (!this.usage) { this._toast('用量还在统计中，稍等几秒…'); return; }
+    if (!this.usage) { this._toast(tr("用量还在统计中，稍等几秒…")); return; }
     this.usageSource = src;
     this.usageDim = 'member';
     this.usageRank = 'total';
@@ -1343,11 +1351,11 @@ class Office {
     const chip = (bg, fg, label, v, title) =>
       `<span title="${title}" style="display:inline-flex; align-items:center; gap:2px; background:${bg}; border:1.5px solid #5a4636; border-radius:6px; padding:2px 7px; font-size:${fs}px; font-weight:700; color:${fg};">${label} ${this._fmtTok(v)}</span>`;
     const chips = [
-      chip('#ffe3e3', '#c0392b', '✍️ 纯输入', t.inp, '没吃到缓存、全价重算的输入（1x）'),
-      chip('#fde7c8', '#b9791a', '📷 缓存写', t.cc, '写入缓存（拍照），比全价略贵（1.25x）'),
-      chip('#e3f6e3', '#2e7d32', '📄 缓存读', t.cr, '从缓存复用（贴照片），便宜 90%（0.1x）'),
+      chip('#ffe3e3', '#c0392b', tr("✍️ 纯输入"), t.inp, tr("没吃到缓存、全价重算的输入（1x）")),
+      chip('#fde7c8', '#b9791a', tr("📷 缓存写"), t.cc, tr("写入缓存（拍照），比全价略贵（1.25x）")),
+      chip('#e3f6e3', '#2e7d32', tr("📄 缓存读"), t.cr, tr("从缓存复用（贴照片），便宜 90%（0.1x）")),
     ].join('');
-    const metrics = `<span style="font-size:${fs}px; color:#a8825c; font-weight:600;" title="命中率 = 缓存读 ÷ 全部输入；复用 = 缓存读 ÷ 缓存写（一张照片贴了几次）">命中 ${t.hit.toFixed(0)}% · 复用 ${t.cc ? t.reuse.toFixed(1) + 'x' : '—'}</span>`;
+    const metrics = `<span style="font-size:${fs}${tr("px; color:#a8825c; font-weight:600;\" title=\"命中率 = 缓存读 ÷ 全部输入；复用 = 缓存读 ÷ 缓存写（一张照片贴了几次）\">命中 ")}${t.hit.toFixed(0)}${tr("% · 复用 ")}${t.cc ? t.reuse.toFixed(1) + 'x' : '—'}</span>`;
     return `<div style="margin-top:${compact ? 4 : 8}px; display:flex; flex-wrap:wrap; gap:5px; align-items:center; ${compact ? 'padding-left:14px;' : ''}">${chips}${metrics}</div>`;
   }
 
@@ -1355,18 +1363,18 @@ class Office {
     const isOffice = this.usageSource === 'office';
     const actualSourceKey = (isOffice && this.usageDim === 'session') ? 'officeSessions' : this.usageSource;
     const src = this.usage && this.usage[actualSourceKey];
-    const label = isOffice ? '🏢 办公室' : '💻 iTerm';
-    $('og-usage-title').textContent = `${label} · 用量明细`;
+    const label = isOffice ? tr("🏢 办公室") : '💻 iTerm';
+    $('og-usage-title').textContent = `${label}${tr(" · 用量明细")}`;
     const stats = $('og-usage-stats'), tabs = $('og-usage-tabs'), rank = $('og-usage-rank');
     stats.innerHTML = ''; tabs.innerHTML = ''; rank.innerHTML = '';
-    if (!src) { stats.innerHTML = '<div style="font-size:14px;color:#a8825c;">暂无数据</div>'; $('og-usage-foot').textContent = ''; return; }
+    if (!src) { stats.innerHTML = tr("<div style=\"font-size:14px;color:#a8825c;\">暂无数据</div>"); $('og-usage-foot').textContent = ''; return; }
 
     // Dimensions (按成员 / 按会话)
     const dims = $('og-usage-dims');
     dims.innerHTML = '';
     if (isOffice) {
       dims.style.display = 'flex';
-      [['member', '按成员'], ['session', '按会话']].forEach(([dim, lbl]) => {
+      [['member', tr("按成员")], ['session', tr("按会话")]].forEach(([dim, lbl]) => {
         const on = this.usageDim === dim;
         const t = document.createElement('div');
         t.style.cssText = `cursor:pointer; padding:3px 10px; border-radius:6px; font-size:11.5px; font-weight:600; border:1.8px solid #5a4636; ${on ? 'background:#ff8c42; color:#fff;' : 'background:#fff; color:#a8825c;'}`;
@@ -1378,7 +1386,7 @@ class Office {
       dims.style.display = 'none';
     }
 
-    [['今日', src.today], ['本周', src.week], ['累计', src.total]].forEach(([name, b]) => {
+    [[tr("今日"), src.today], [tr("本周"), src.week], [tr("累计"), src.total]].forEach(([name, b]) => {
       const c = document.createElement('div');
       c.style.cssText = 'flex:1; background:#fff; border:2.5px solid #5a4636; border-radius:12px; padding:11px 12px; box-shadow:2px 2px 0 #5a4636; display:flex; flex-direction:column;';
       
@@ -1392,14 +1400,12 @@ class Office {
       }
 
       c.innerHTML = `<div style="font-size:13px; color:#a8825c; font-weight:600;">${name}</div>
-        <div style="font-size:23px; font-weight:700; color:#5a4636; line-height:1.3;">${this._fmtTok(b.billable)}</div>
-        <div style="font-size:11px; color:#bfa07a; flex:1;">输出 ${this._fmtTok(b.output)} · ${b.msgs} 条</div>
-        ${this._tierHtml(b)}
+        <div style="font-size:23px; font-weight:700; color:#5a4636; line-height:1.3;">${this._fmtTok(b.billable)}${tr("</div>\n        <div style=\"font-size:11px; color:#bfa07a; flex:1;\">输出 ")}${this._fmtTok(b.output)} · ${b.msgs}${tr(" 条</div>\n        ")}${this._tierHtml(b)}
         ${modelsHtml}`;
       stats.appendChild(c);
     });
 
-    [['today', '今日'], ['week', '本周'], ['total', '累计']].forEach(([k, lbl]) => {
+    [['today', tr("今日")], ['week', tr("本周")], ['total', tr("累计")]].forEach(([k, lbl]) => {
       const on = this.usageRank === k;
       const t = document.createElement('div');
       t.style.cssText = `cursor:pointer; padding:4px 13px; border-radius:8px; font-size:13px; font-weight:600; border:2px solid #5a4636; ${on ? 'background:#ff8c42; color:#fff;' : 'background:#fff; color:#a8825c;'}`;
@@ -1410,7 +1416,7 @@ class Office {
 
     const list = [...(src.items || [])].sort((a, b) => b[this.usageRank].billable - a[this.usageRank].billable)
       .filter(p => p[this.usageRank].billable > 0).slice(0, 8);
-    if (!list.length) { rank.innerHTML = '<div style="font-size:13.5px; color:#a8825c; padding:6px 2px;">该时段暂无用量</div>'; }
+    if (!list.length) { rank.innerHTML = tr("<div style=\"font-size:13.5px; color:#a8825c; padding:6px 2px;\">该时段暂无用量</div>"); }
     const max = list.length ? list[0][this.usageRank].billable : 1;
     list.forEach((p, i) => {
       const v = p[this.usageRank].billable;
@@ -1455,7 +1461,7 @@ class Office {
 
     const when = new Date(this.usage.generatedAt);
     const hh = String(when.getHours()).padStart(2, '0'), mm = String(when.getMinutes()).padStart(2, '0');
-    $('og-usage-foot').textContent = `计费 = 纯输入(1x) + 缓存写(1.25x) + 输出（缓存读≈0.1x 不计）· 命中 = 读÷全部输入 · 复用 = 读÷写 · 更新于 ${hh}:${mm}`;
+    $('og-usage-foot').textContent = `${tr("计费 = 纯输入(1x) + 缓存写(1.25x) + 输出（缓存读≈0.1x 不计）· 命中 = 读÷全部输入 · 复用 = 读÷写 · 更新于 ")}${hh}:${mm}`;
   }
 
   _formatSessionTime(minTs, maxTs) {
@@ -1549,18 +1555,18 @@ class Office {
   // ── EXIT 门的打工人劝退语 ─────────────────────────────────
   _showDoorBubble(doorCenterX) {
     const LINES = [
-      '小小牛马，想去哪儿呢？赶紧回去干活 🐴',
-      '门是装饰品，就像你的下班时间。',
-      '出去？这事儿 KPI 同意了吗？',
-      '外面没有老板，但也没有工资哦。',
-      '这扇门只进不出，跟需求池一个道理。',
-      '想跑？你的任务还没跑完呢。',
-      '门禁卡余额不足：还差 3 个需求才能解锁。',
-      '今天的你也是公司最靓的牛马，回去吧。',
-      '自由是留给交付完的人的。',
-      '早上进来的时候，没想过还能出去吧？',
-      '检测到摸鱼企图，已通知 PM 👀',
-      'EXIT 的意思是：Effort × Immediately，快去。',
+      tr("小小牛马，想去哪儿呢？赶紧回去干活 🐴"),
+      tr("门是装饰品，就像你的下班时间。"),
+      tr("出去？这事儿 KPI 同意了吗？"),
+      tr("外面没有老板，但也没有工资哦。"),
+      tr("这扇门只进不出，跟需求池一个道理。"),
+      tr("想跑？你的任务还没跑完呢。"),
+      tr("门禁卡余额不足：还差 3 个需求才能解锁。"),
+      tr("今天的你也是公司最靓的牛马，回去吧。"),
+      tr("自由是留给交付完的人的。"),
+      tr("早上进来的时候，没想过还能出去吧？"),
+      tr("检测到摸鱼企图，已通知 PM 👀"),
+      tr("EXIT 的意思是：Effort × Immediately，快去。"),
     ];
     let bub = document.getElementById('og-door-bubble');
     if (!bub) {
@@ -1597,4 +1603,6 @@ class Office {
   }
 }
 
+initLanguage();
 window.__office = new Office();
+window.addEventListener('office-language', () => window.__office._refreshLanguage());

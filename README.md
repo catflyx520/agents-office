@@ -43,6 +43,10 @@ Open **http://localhost:3000**, select a provider in **模型与登录**, and se
 
 打开页面后选择服务商，并先将各 agent 的 `workDir` 改为自己的项目目录。修改 `.env` 后重启服务。
 
+Use **中文 / English** in the toolbar to change the interface language; your choice is remembered. Chat messages and custom names keep their original content.
+
+顶部工具栏可切换 **中文 / English**，下次打开会记住选择；聊天内容和自定义名称保持原文。
+
 ## Configuration / 配置
 
 `.env` is ignored by Git. CLI paths, Windows notes, agent directories, and troubleshooting: **[Setup guide / 配置指南](docs/SETUP.md)**.

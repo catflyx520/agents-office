@@ -172,7 +172,8 @@
 <div style="font-family:'Fredoka',sans-serif; position:relative; background:#fff3e2; color:#5a4636; height:100vh; min-height:660px; display:flex; flex-direction:column; overflow:hidden;">
 
   <!-- ===== TOOLBAR ===== -->
-  <div style="height:60px; flex:none; display:flex; align-items:center; gap:13px; padding:0 18px; background:#fff8ee; border-bottom:3px solid #f0d9b8; z-index:30;">
+  <div style="min-height:60px; flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 18px; background:#fff8ee; border-bottom:3px solid #f0d9b8; z-index:30;">
+    <select id="og-language" aria-label="语言 / Language" style="background:#fff;color:#5a4636;border:2px solid #5a4636;border-radius:10px;padding:7px;font:600 13px Fredoka,sans-serif;cursor:pointer;"><option value="zh">中文</option><option value="en">English</option></select>
     <div id="og-office-sign" title="点击给办公室改名" style="display:flex; align-items:center; gap:9px; cursor:pointer; background:#fff8ee; border:2.5px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:5px 14px 5px 6px;">
       <div style="width:32px; height:32px; border-radius:10px; background:#ff8c42; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; font-size:16px;">◆</div>
       <div id="og-office-name" style="font-size:18px; font-weight:700; color:#5a4636;">小办公室</div>
@@ -401,8 +402,8 @@
         </div>
         <div style="font-size:10.5px; color:#bfa07a; margin-top:8px; padding-left:4px; line-height:1.6; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center;">
           <span><kbd>Enter</kbd> 发送</span>
-          <span><kbd>Shift + Enter</kbd> <b>全新会话（不带历史记忆）</b></span>
-          <span><kbd>Ctrl + Enter</kbd> 换行</span>
+          <span><kbd>Ctrl + Enter</kbd> <b>全新会话（不带历史记忆）</b></span>
+          <span><kbd>Shift + Enter</kbd> 换行</span>
           <span><kbd>Ctrl + C</kbd> 取消</span>
           <span><kbd>Esc</kbd> 退出</span>
         </div>
