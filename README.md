@@ -4,6 +4,8 @@ A pixel-art office for coordinating **Claude Code and Codex agents** on your loc
 
 像素风 AI 办公室：向 PM 描述需求，由它拆分任务并协调多个 agent 在本地项目中执行。
 
+![Agents Office — virtual office and agent chat / 虚拟办公室与 Agent 对话](docs/images/office-screenshot.png)
+
 ## Features / 功能
 
 - Walk around the office and chat with agents · 像素办公室与角色对话
