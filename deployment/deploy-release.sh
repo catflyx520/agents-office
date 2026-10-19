@@ -20,7 +20,7 @@ start_office() {
   local -a workspace_flags=(-v /var/lib/agents-office/home:/home/node:rw --env-file /etc/agents-office/providers.env)
   if [ "$(docker image inspect --format '{{index .Config.Labels "org.agents-office.access"}}' "$1")" = 'public' ]; then
     # Public visitors never receive the owner's old home, keys or CLI login.
-    workspace_flags=(--tmpfs /home/node:rw,uid=1000,gid=1000,size=16m)
+    workspace_flags=(--tmpfs '/home/node:rw,uid=1000,gid=1000,size=16m')
   fi
   docker run -d --name agents-office --restart unless-stopped \
     --read-only --cap-drop ALL --security-opt no-new-privileges:true \
