@@ -6,7 +6,7 @@ This runs the current Express/WebSocket backend, real CLI subprocess support, up
 
 ## What is deployed
 
-- One Amazon Linux 2023 ARM64 EC2 instance (`t4g.small`, 2 GiB), with Docker, Nginx and SSM management.
+- One Amazon Linux 2023 ARM64 EC2 instance (`t4g.micro`, 1 GiB), selected by the owner, with Docker, Nginx and SSM management.
 - The existing application and pinned Claude Code/Codex CLIs run as a non-root user in a container. The application filesystem is read-only; its home/workspace directory is persistent and writable.
 - CloudFront provides the HTTPS entry and a **VPC origin** connection to the instance. HTTP is accepted only from the dedicated VPC, not the public Internet. The instance's public IPv4 is for outbound package/provider/SSM access; there is no inbound SSH or public port 3000.
 - Nginx checks a generated Basic authentication password for every HTTP and WebSocket request. CloudFront forwards viewer headers and disables caching. Cross-site browser origins are rejected.
@@ -16,7 +16,9 @@ The app receives the small changes needed for hosting: `/healthz`, HTTPS-aware `
 
 ## Cost review before creating
 
-Plan for roughly **US$18–25/month** for a continuously running small instance, 20 GiB gp3 disk, one IPv4 address and one stored secret, before provider API usage and significant traffic. This is a planning estimate, not a price quote or spending cap; eligibility for credits/free trials is not assumed. `t4g.medium` costs more. CPU credits use Standard mode, preventing Unlimited credit surcharges but allowing throttling after credits are exhausted.
+The selected `t4g.micro` is billed for its running hours, plus 20 GiB gp3 disk, one IPv4 address, one stored secret, and applicable traffic/provider usage. The previously discussed t4g.small-specific 750-hour trial does not apply to this instance type; account credits or other Free Tier benefits depend on actual account usage. See the [AWS T4g trial terms](https://aws.amazon.com/ec2/faqs/). CPU credits use Standard mode, preventing Unlimited credit surcharges but allowing throttling after credits are exhausted.
+
+The application container is limited to 640 MiB of RAM, 1,792 MiB combined memory/swap, and a 96 MiB temporary filesystem. The host has a 2 GiB swap file. CI checks the backend/proxy under the same container limits; this is not a load test of concurrent model tasks or proof that swap performs like physical RAM.
 
 There is no NAT gateway, ALB, RDS, or EKS cluster. CloudFront traffic, stored data, requests and model-provider calls may add charges. The existing account budget does not stop spending. Review [EC2 pricing](https://aws.amazon.com/ec2/pricing/on-demand/), [EBS pricing](https://aws.amazon.com/ebs/pricing/), [IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and [Secrets Manager pricing](https://aws.amazon.com/secrets-manager/pricing/).
 
@@ -28,7 +30,7 @@ Use the existing account `397303793146` in **Ohio / us-east-2**. The existing Gi
 2. Create a standard stack and upload `deployment/AgentsOfficeHosting.template.json`.
 3. Stack name: `AgentsOfficeHosting`.
 4. `ReleaseCommit`: paste the full reviewed 40-character commit from the successful **Check and deploy current application** workflow. Use the exact commit provided with the handoff.
-5. Keep `InstanceType=t4g.small` and the default Amazon Linux AMI parameter.
+5. Keep `InstanceType=t4g.micro` and the default Amazon Linux AMI parameter.
 6. On review, acknowledge IAM resource creation and create the stack yourself.
 7. Wait for `CREATE_COMPLETE`. Package/image setup can take several minutes; CloudFront VPC-origin creation can take up to 15 minutes. The instance must report a healthy application and an anonymous 401 response before its resource signal succeeds.
 
@@ -59,7 +61,7 @@ This cloud machine starts with fresh workspace directories. It cannot access the
 - Use the EC2 **Connect → Session Manager** console; no SSH key or inbound SSH rule is needed.
 - Initial logs: `/var/log/cloud-init-output.log`. Application: `sudo docker logs agents-office`. Never post logs containing credentials or private task content.
 - Website auth hash: `/etc/nginx/office.htpasswd`. Provider environment file: `/etc/agents-office/providers.env` (initially empty, root-only). Workspace data: `/var/lib/agents-office/home`.
-- A small instance is an initial hosting size, not a guarantee for several concurrent coding agents. Increase capacity if memory or CPU becomes limiting; do not confuse a hosting smoke check with a load test.
+- The 1 GiB micro instance is the selected initial hosting size. Concurrent coding-agent capacity remains unmeasured; inspect memory and CPU before adding heavier workloads.
 - A failed application health check attempts to start the previous image. Old images are retained for rollback; monitor disk space. Container log files rotate.
 - Deleting the stack **retains the root EBS volume and login secret**. These retained resources continue to cost money; inspect them and deliberately remove or back them up when retiring this workspace. There is no automatic backup policy in this initial deployment.
 - The initial instance is a single point of failure. This is an owner-operated deployment, not a multi-tenant production service.

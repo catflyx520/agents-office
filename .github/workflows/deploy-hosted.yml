@@ -38,7 +38,7 @@ jobs:
           OFFICE_TEST_PASSWORD: ci-fixture-only
         run: |
           docker network create office-ci
-          docker run -d --name office-ci --network office-ci --read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:rw,size=256m --tmpfs /home/node:rw,uid=1000,gid=1000 agents-office:ci
+          docker run -d --name office-ci --network office-ci --read-only --cap-drop ALL --security-opt no-new-privileges:true --memory 640m --memory-swap 1792m --pids-limit 256 --tmpfs /tmp:rw,size=96m --tmpfs /home/node:rw,uid=1000,gid=1000 agents-office:ci
           mkdir -p artifacts
           printf 'office:%s\n' "$(openssl passwd -apr1 "$OFFICE_TEST_PASSWORD")" > artifacts/office.htpasswd
           sed 's|127.0.0.1:3000|office-ci:3000|' deployment/nginx.conf > artifacts/nginx.conf
