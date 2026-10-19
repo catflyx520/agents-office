@@ -4,7 +4,7 @@ A visual office for AI teamwork. Explore a scripted Demo, or connect your own Op
 
 像素风 AI 办公室：默认先体验 Demo；正式模式使用访客自己的 AI API。为减少运行成本，两个模式均禁用文件上传。
 
-![Agents Office](docs/images/office-screenshot.png)
+![Agents Office hosted Demo with labeled sample replies and disabled uploads](docs/screenshots/aws-public-demo.jpg)
 
 ## Two modes
 
@@ -15,7 +15,7 @@ A visual office for AI teamwork. Explore a scripted Demo, or connect your own Op
 
 The web version provides chat, plans and code suggestions. It does not execute shell commands, inspect project directories, run tests or change repository files. Upload controls are disabled, and `/upload` rejects requests before reading their bodies. The original local CLI runner remains available separately.
 
-**Hosted address:** [Agents Office](https://d396om3j4lmtlb.cloudfront.net). The previous private version was verified on AWS; activation of this new password-free release requires the one-time publishing-document update in the [deployment guide](docs/AWS-DEPLOYMENT.md). This README does not claim the public migration is complete.
+**Live Demo:** [Agents Office](https://d396om3j4lmtlb.cloudfront.net). The password-free release was [deployed and verified](https://github.com/catflyx520/agents-office/actions/runs/39339228277) on October 19, 2026 (America/Los_Angeles). It opens in Demo; visitors can switch to Live mode to connect their AI. See the [deployment guide](docs/AWS-DEPLOYMENT.md) for operation and checks.
 
 ## Run locally
 

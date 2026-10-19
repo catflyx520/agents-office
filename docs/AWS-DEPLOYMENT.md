@@ -4,7 +4,7 @@
 
 The previous private application was deployed and [verified](https://github.com/catflyx520/agents-office/actions/runs/39206895715/attempts/2) on October 18, 2026 (America/Los_Angeles), at commit `4fbd193efb3f4c84d17eb3c93a6843696c69b4d1`.
 
-The new release implements a password-free Demo entry and a separate Live mode using each visitor's OpenAI / Claude API key. Local HTTP/WebSocket, session-isolation and provider-stream fixtures have passed; public AWS activation is pending the one-time document update below and a successful publish. No paid model call has been made for acceptance.
+**Public release deployed and verified on October 19, 2026 (America/Los_Angeles):** [Live Demo](https://d396om3j4lmtlb.cloudfront.net), [successful workflow](https://github.com/catflyx520/agents-office/actions/runs/39339228277), application commit `6f8faeea4fdf95604dc9de8758d607246428810f`. The owner completed the one-time document update below. Password-free HTML/assets, upload rejection, default Demo and its handoffs, visitor-key connection state, cross-site rejection, and a 70-second idle WebSocket heartbeat all passed. The release also passed 51 tests, CloudFormation/ShellCheck validation and the ARM64 image/proxy check. Actual browser QA confirmed the hosted Demo, English interface, Live connection form and the 390 × 844 phone layout with no horizontal document overflow. Captures are in `docs/screenshots/aws-*.jpg`. No paid model call has been made for acceptance.
 
 | Existing resource | Value |
 | --- | --- |
@@ -18,6 +18,8 @@ The new release implements a password-free Demo entry and a separate Live mode u
 | VPC | `vpc-017cadbb751145c31` |
 
 ## One-time update for the existing stack
+
+Completed for this stack. The steps below remain as a reference for similar upgrades and recovery.
 
 The original instance has an older publishing helper that only replaces the app image. Removing the website password also requires updating the host's Nginx configuration. The existing publishing role cannot change its own SSM document; the owner submits this small CloudFormation update in the console.
 
