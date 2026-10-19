@@ -1,4 +1,6 @@
 export default {
+  "为减少运行成本，暂不支持上传文件。": "File uploads are disabled to reduce running costs.",
+  "连接已断开，请刷新页面。": "Connection closed. Refresh the page.",
   "晴": "Clear",
   "多云": "Partly cloudy",
   "阴": "Overcast",

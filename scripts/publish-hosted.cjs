@@ -26,10 +26,7 @@ async function main() {
     }
   }
   assert.ok(finished, 'Deployment timed out');
-  const secret = JSON.parse(aws('secretsmanager', 'get-secret-value', '--secret-id', process.env.OFFICE_LOGIN_SECRET_ARN).SecretString);
-  // Never print or persist credentials. GitHub additionally masks the generated password.
-  if (process.env.GITHUB_ACTIONS) process.stdout.write(`::add-mask::${secret.password}\n`);
-  await verify(process.env.OFFICE_SITE_URL, secret.password, 70000);
+  await verify(process.env.OFFICE_SITE_URL, 70000);
   console.log('Published and verified:', process.env.OFFICE_SITE_URL);
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

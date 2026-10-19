@@ -1,5 +1,7 @@
 # Agents Office 配置指南
 
+本文介绍原有的本地 CLI 版本，使用 `npm run start:local` 启动。默认的 `npm start` 现为 Demo + 自带 API 的网页版：Demo 无需任何配置，正式模式直接在页面填写自己的 API key；无需配置本机 CLI 或 `.env`。两种模式均禁用上传，以减少运行成本。
+
 ## 本地 API Key 配置
 
 安装所选服务商的 CLI 后，在项目根目录将 `.env.example` 复制为 `.env`（PowerShell：`Copy-Item .env.example .env`），填写需要使用的 key：

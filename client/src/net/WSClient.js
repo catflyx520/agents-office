@@ -15,6 +15,8 @@ export class WSClient extends EventTarget {
   send(obj) {
     if (this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(obj));
+      return true;
     }
+    return false;
   }
 }

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>小办公室 · Virtual Office</title>
+<link rel="stylesheet" href="/hosted.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='%23ff8c42' stroke='%235a4636' stroke-width='5'/%3E%3Cpolygon points='32,15 49,32 32,49 15,32' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -169,10 +170,10 @@
 </style>
 </head>
 <body>
-<div style="font-family:'Fredoka',sans-serif; position:relative; background:#fff3e2; color:#5a4636; height:100vh; min-height:660px; display:flex; flex-direction:column; overflow:hidden;">
+<div id="og-root" style="font-family:'Fredoka',sans-serif; position:relative; background:#fff3e2; color:#5a4636; height:100vh; min-height:660px; display:flex; flex-direction:column; overflow:hidden;">
 
   <!-- ===== TOOLBAR ===== -->
-  <div style="min-height:60px; flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 18px; background:#fff8ee; border-bottom:3px solid #f0d9b8; z-index:30;">
+  <div id="og-toolbar" style="min-height:60px; flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 18px; background:#fff8ee; border-bottom:3px solid #f0d9b8; z-index:30;">
     <select id="og-language" aria-label="语言 / Language" style="background:#fff;color:#5a4636;border:2px solid #5a4636;border-radius:10px;padding:7px;font:600 13px Fredoka,sans-serif;cursor:pointer;"><option value="zh">中文</option><option value="en">English</option></select>
     <div id="og-office-sign" title="点击给办公室改名" style="display:flex; align-items:center; gap:9px; cursor:pointer; background:#fff8ee; border:2.5px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:5px 14px 5px 6px;">
       <div style="width:32px; height:32px; border-radius:10px; background:#ff8c42; border:2.5px solid #5a4636; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; font-size:16px;">◆</div>
@@ -197,11 +198,11 @@
     </div>
     <div id="og-login-btn" style="padding:8px 14px; border-radius:12px; background:#fff; border:2.5px solid #5a4636; font-size:13px; font-weight:600; color:#5a4636; cursor:pointer;">🔑 模型与登录</div>
     <div id="og-team-btn" style="padding:8px 14px; border-radius:12px; background:#fff; border:2.5px solid #5a4636; font-size:13px; font-weight:600; color:#5a4636; cursor:pointer;">👥 团队</div>
-    <div id="og-upload-btn" style="padding:8px 14px; border-radius:12px; background:#5fb0b7; border:2.5px solid #5a4636; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">📎 上传</div>
+    <button id="og-upload-btn" type="button" disabled title="为减少运行成本，暂不支持上传文件。" style="padding:8px 14px; border-radius:12px; background:#5fb0b7; border:2.5px solid #5a4636; color:#fff; font-size:13px; font-weight:600;">📎 上传已禁用</button>
     <div id="og-console-btn" style="padding:8px 14px; border-radius:12px; background:#5a4636; border:2.5px solid #5a4636; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">📜 日志台</div>
   </div>
 
-  <div style="flex:1; display:flex; min-height:0;">
+  <div id="og-layout" style="flex:1; display:flex; min-height:0;">
 
     <!-- ===== MAP ===== -->
     <div id="og-map" style="flex:1; position:relative; overflow:hidden;">
@@ -396,7 +397,7 @@
 
       <div style="flex:none; padding:14px; border-top:3px solid #f0d9b8;">
         <div style="display:flex; align-items:flex-end; gap:8px; background:#fff; border:2.5px solid #5a4636; border-radius:14px; padding:8px 10px; box-shadow:2px 3px 0 #5a4636;">
-          <label style="cursor:pointer; color:#a8825c; font-size:16px; line-height:1;">📎<input id="og-file" type="file" multiple style="display:none;"></label>
+          <label title="为减少运行成本，暂不支持上传文件。" style="cursor:not-allowed; opacity:.4; color:#a8825c; font-size:16px; line-height:1;">📎<input id="og-file" type="file" disabled multiple style="display:none;"></label>
           <textarea id="og-input" rows="1" placeholder="和同事说点什么… (Enter 发送 · Shift+Enter 换行 · Ctrl+Enter 全新会话)" style="flex:1; border:none; outline:none; resize:none; font-family:'Fredoka',sans-serif; font-size:13.5px; color:#5a4636; background:transparent; max-height:220px; overflow-y:auto; line-height:1.4;"></textarea>
           <div id="og-send" style="cursor:pointer; width:32px; height:32px; border-radius:10px; background:#ff8c42; border:2px solid #5a4636; display:flex; align-items:center; justify-content:center; color:#fff; flex:none;">&#10138;</div>
         </div>

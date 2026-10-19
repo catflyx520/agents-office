@@ -1,103 +1,63 @@
-# Current-version AWS deployment
+# AWS deployment: public Demo + visitor-owned AI
 
-Status: deployed and verified on October 18, 2026 (America/Los_Angeles). The owner created and updated `AgentsOfficeHosting`; the [successful publishing workflow, attempt 2](https://github.com/catflyx520/agents-office/actions/runs/39206895715/attempts/2) deployed application commit `4fbd193efb3f4c84d17eb3c93a6843696c69b4d1`. Authenticated HTML and health responses, the real PM agent roster, WebSocket authentication, cross-site rejection, and a 70-second idle connection with heartbeat frames all passed. Anonymous HTTP and WebSocket requests return 401. No model task or provider call was submitted.
+## Current rollout status
 
-Verified private URL: [Agents Office](https://d396om3j4lmtlb.cloudfront.net), distribution `E3JKWOH1Q3R2GJ`, instance `i-0c5c52fb481ee20cc`. These identify this private workspace and are not credentials. Website username: `office`. Retrieve the password yourself from Secrets Manager secret `LoginSecret-0DjcjaEpbtus` in Ohio (`us-east-2`). Provider credentials and model execution remain unconfigured and unverified.
+The previous private application was deployed and [verified](https://github.com/catflyx520/agents-office/actions/runs/39206895715/attempts/2) on October 18, 2026 (America/Los_Angeles), at commit `4fbd193efb3f4c84d17eb3c93a6843696c69b4d1`.
 
-## Fix the initial CloudFront origin timeout
+The new release implements a password-free Demo entry and a separate Live mode using each visitor's OpenAI / Claude API key. Local HTTP/WebSocket, session-isolation and provider-stream fixtures have passed; public AWS activation is pending the one-time document update below and a successful publish. No paid model call has been made for acceptance.
 
-Resolved for this stack: `CloudFrontSourceSecurityGroupId=sg-08edba2e4f0be6844`, the service-managed group in VPC `vpc-017cadbb751145c31`. The following steps document the fix for future stack creation or recovery; this stack's public verification has passed.
-
-The initial template allowed only the VPC CIDR as the HTTP source. AWS documents CloudFront origin access through its origin-facing managed prefix list or its service-managed security group; the template now accepts the latter explicitly. The publishing role deliberately has no permission to change EC2 networking.
-
-1. In EC2, select instance `i-0c5c52fb481ee20cc` and note its VPC ID under **Networking**.
-2. Open **Security Groups**, filter by that VPC ID, and find the group whose name starts with `CloudFront-VPCOrigins-Service-SG`. Copy its `sg-...` ID. Do not edit the AWS-managed group itself.
-3. In CloudFormation, select `AgentsOfficeHosting` → **Update stack** → replace the template with the newly generated `deployment/AgentsOfficeHosting.template.json`.
-4. Set `CloudFrontSourceSecurityGroupId` to the copied ID. Keep the existing `ReleaseCommit`, `InstanceType`, and AMI values.
-5. Review the change set: the instance security group's HTTP ingress changes to the CloudFront service group. No instance replacement or broader IAM permissions are intended. Apply the update and wait for `UPDATE_COMPLETE`.
-6. Rerun the failed deployment job and its live HTTP/WebSocket checks before calling the site deployed.
-
-No public `0.0.0.0/0` inbound rule is added. The initial blank parameter remains available only for first-stack creation, before AWS has created its CloudFront service-managed group. New stacks require this same follow-up configuration before live verification.
-
-This runs the current Express/WebSocket backend, real CLI subprocess support, uploads, and persistent agent/session state. It is **one private workspace for its owner**, not a public shared service, a simulated demo, or a per-user API-key product. The local `npm start` flow remains available.
-
-## What is deployed
-
-- One Amazon Linux 2023 ARM64 EC2 instance (`t4g.small`, 2 GiB), selected by the owner, with Docker, Nginx and SSM management.
-- The existing application and pinned Claude Code/Codex CLIs run as a non-root user in a container. The application filesystem is read-only; its home/workspace directory is persistent and writable.
-- CloudFront provides the HTTPS entry and a **VPC origin** connection to the instance. The instance security group accepts HTTP only from the CloudFront service-managed security group. The instance's public IPv4 is for outbound package/provider/SSM access; there is no inbound SSH or public port 3000.
-- Nginx checks a generated Basic authentication password for every HTTP and WebSocket request. CloudFront forwards viewer headers and disables caching. Cross-site browser origins are rejected.
-- No Root keys, provider credentials, local projects, prior sessions, or private files are copied into the image. Docker cannot access the host Docker socket or instance metadata. The host role can read only this stack's website-login secret plus SSM management and its own stack signal.
-
-The app receives the small changes needed for hosting: `/healthz`, HTTPS-aware `wss:` selection, and WebSocket heartbeat frames. There is no showcase transport or fake execution data. Compatible dependency patches are included; audit warnings remain in the existing dependency tree and are not represented as a clean security audit.
-
-## Cost review before creating
-
-The selected `t4g.small` is covered by AWS's advertised trial through December 31, 2026: up to 750 instance-hours per month across participating Regions, including Ohio. The allowance is shared across the account (or consolidated billing organization); remaining usage has not been checked in this account. Unused hours do not carry over. A single continuously running instance fits within 750 hours in a month if other instances have not consumed that allowance. See the [AWS T4g trial terms](https://aws.amazon.com/ec2/faqs/).
-
-The trial covers instance computation, not 20 GiB gp3 disk, public IPv4, the stored secret, applicable traffic, or model-provider usage. Hours above the allowance and operation after the trial are billed at applicable rates. The previously discussed US$18–25/month is a rough budget without trial deductions, not a prediction of the current bill. CPU credits use Standard mode, preventing Unlimited credit surcharges but allowing throttling after credits are exhausted.
-
-The application container is limited to 1,400 MiB of RAM, 2,800 MiB combined memory/swap, and a 256 MiB temporary filesystem. The host has a 2 GiB swap file. CI checks the backend/proxy under the same container limits; this is not a load test of concurrent model tasks or proof that swap performs like physical RAM.
-
-There is no NAT gateway, ALB, RDS, or EKS cluster. CloudFront traffic, stored data, requests and model-provider calls may add charges. The existing account budget does not stop spending. Review [EC2 pricing](https://aws.amazon.com/ec2/pricing/on-demand/), [EBS pricing](https://aws.amazon.com/ebs/pricing/), [IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and [Secrets Manager pricing](https://aws.amazon.com/secrets-manager/pricing/).
-
-## Create in the console
-
-Use the existing account `397303793146` in **Ohio / us-east-2**. The existing GitHub OIDC provider is reused; do not create another one.
-
-1. Open [CloudFormation in Ohio](https://us-east-2.console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/create/template).
-2. Create a standard stack and upload `deployment/AgentsOfficeHosting.template.json`.
-3. Stack name: `AgentsOfficeHosting`.
-4. `ReleaseCommit`: paste the full reviewed 40-character commit from the successful **Check and deploy current application** workflow. Use the exact commit provided with the handoff.
-5. Keep `InstanceType=t4g.small` and the default Amazon Linux AMI parameter.
-6. On review, acknowledge IAM resource creation and create the stack yourself.
-7. Wait for `CREATE_COMPLETE`. Package/image setup can take several minutes; CloudFront VPC-origin creation can take up to 15 minutes. The instance must report a healthy application and an anonymous 401 response before its resource signal succeeds.
-
-Copy these **non-secret Outputs** back for publication and verification:
-
-| Output | GitHub repository variable |
+| Existing resource | Value |
 | --- | --- |
-| `InstanceId` | `OFFICE_INSTANCE_ID` |
-| `DeployDocumentName` | `OFFICE_DEPLOY_DOCUMENT` |
-| `SiteUrl` | `OFFICE_SITE_URL` |
-| `LoginSecretArn` | `OFFICE_LOGIN_SECRET_ARN` |
-| `DeployRoleArn` | `OFFICE_DEPLOY_ROLE_ARN` |
+| Account / Region | `397303793146` / Ohio `us-east-2` |
+| Stack | `AgentsOfficeHosting` |
+| Site | https://d396om3j4lmtlb.cloudfront.net |
+| Distribution | `E3JKWOH1Q3R2GJ` |
+| Instance | `i-0c5c52fb481ee20cc` — `t4g.small` |
+| Deployment document | `AgentsOfficeHosting-DeployDocument-YjmUBzOYKILV` |
+| CloudFront source group | `sg-08edba2e4f0be6844` |
+| VPC | `vpc-017cadbb751145c31` |
 
-`DistributionId` is also output for operations. Do not paste the secret's password into chat or GitHub variables.
+## One-time update for the existing stack
 
-## Open and verify
+The original instance has an older publishing helper that only replaces the app image. Removing the website password also requires updating the host's Nginx configuration. The existing publishing role cannot change its own SSM document; the owner submits this small CloudFormation update in the console.
 
-In AWS Secrets Manager, open the secret identified by `LoginSecretArn` and choose **Retrieve secret value** yourself. The website username is `office`; use its generated `password` in the browser's authentication prompt at `SiteUrl`.
+1. Open CloudFormation in Ohio and select **AgentsOfficeHosting → Update → Replace existing template → Upload a template file**.
+2. Upload the newly generated `deployment/AgentsOfficeHosting.template.json` from this checkout.
+3. Keep every parameter at its existing value, including `ReleaseCommit`, `InstanceType=t4g.small`, `LatestAmi`, and `CloudFrontSourceSecurityGroupId=sg-08edba2e4f0be6844`.
+4. Review the changes. **Only `DeployDocument` should change**. `UpdateMethod=NewVersion` keeps its existing name and updates the default document version. No EC2, AMI, bootstrap, security group or IAM change is included. If an instance replacement appears, stop and inspect the change set.
+5. Acknowledge the IAM notice if shown, submit and wait for **UPDATE_COMPLETE**.
+6. Run **GitHub Actions → Check and deploy current application → Run workflow**, `main`, enable deployment. The command downloads the deployment helper from the exact reviewed commit, builds the public image, checks its health, installs `nginx.public.conf` and reloads Nginx. It does not read the old website password or any provider key.
+7. Accept the release only after public HTML and assets return 200, `/upload` returns 410, Demo handoffs finish, Live mode requires a visitor key, cross-site requests are rejected, and the WebSocket survives 70 seconds of idle heartbeat traffic.
 
-The publishing workflow obtains temporary GitHub OIDC credentials. It can run only the stack's constrained SSM deployment document on the stack's instance, read deployment status, and retrieve this stack's login secret for verification. It cannot create infrastructure or update other projects. Passwords are masked and not saved as workflow artifacts.
+The application image and proxy configuration roll back together if the new health/proxy check fails. The old password file and retained secret stay available for a deliberate rollback; they are not used by the public release. Merely updating CloudFormation does not publish the new application.
 
-Run **Actions → Check and deploy current application → Run workflow**, `main`, enable deployment. The workflow deploys the reviewed commit, checks anonymous requests are rejected, verifies the real agent roster over authenticated WebSocket, checks cross-site rejection, and keeps the socket open for 70 seconds to verify heartbeat traffic. It does not submit a model task or incur provider usage.
+## Runtime behavior
 
-This cloud machine starts with fresh workspace directories. It cannot access the original computer's drives. Real coding work requires adding the intended repository to this workspace and configuring a provider on the server. Existing local OAuth login assumptions may require server-side login/API configuration in this remote environment; the planned browser BYOK flow is not implemented by this deployment. No provider connection or successful model execution is claimed until explicitly configured and tested.
+- **Demo defaults on each connection.** It streams clearly labeled preset examples and emits real UI handoff/status events without invoking a model.
+- **Live mode uses visitor credentials.** The key is kept only in that connection's memory and sent to the selected official provider endpoint. It is not saved to disk or browser storage, printed in logs, or shared with another connection. Raw provider error bodies are discarded because they can echo sensitive request content.
+- No public message can invoke the local CLI runner, credential files, uploads, shell commands or project filesystem. The local server remains available with `npm run start:local` on a trusted computer.
+- Disconnecting, switching back to Demo or 15 minutes without client activity destroys the connection's state and aborts active calls. Sessions and chat history do not survive refresh/restart.
+- At most 64 connections and 8 concurrent provider requests, 60 messages/minute per connection, 32 KiB WebSocket messages, 8,000-character prompts, bounded chat context, 2,048 output tokens per API call and a 90-second provider timeout. PM workflows use at most three unique teammate tasks. These limits bound work on the selected small instance; they are not a load-test result.
+- Uploads are disabled in the client, Node server and public Nginx proxy, with the requested explanation: **“File uploads are disabled to reduce running costs.”** Rejection happens before parsing/storing a body. Live mode returns actual AI chat/code proposals, not executed code or verified file changes.
+- Markdown is reconstructed from permitted DOM elements; model-supplied scripts, event handlers, embeds and unsafe link protocols cannot execute.
 
-## Maintenance and recovery
+Provider implementations follow [OpenAI Responses streaming](https://developers.openai.com/api/docs/guides/streaming-responses) (`store:false`, no tools) and [Anthropic Messages streaming](https://platform.claude.com/docs/en/build-with-claude/streaming). Model IDs are editable; account permissions, quotas and provider model availability determine whether a visitor's request succeeds. A stored key is labeled unverified until a successful response.
 
-- Use the EC2 **Connect → Session Manager** console; no SSH key or inbound SSH rule is needed.
-- Initial logs: `/var/log/cloud-init-output.log`. Application: `sudo docker logs agents-office`. Never post logs containing credentials or private task content.
-- Website auth hash: `/etc/nginx/office.htpasswd`. Provider environment file: `/etc/agents-office/providers.env` (initially empty, root-only). Workspace data: `/var/lib/agents-office/home`.
-- The 2 GiB small instance is the selected initial hosting size. Concurrent coding-agent capacity remains unmeasured; inspect memory and CPU before adding heavier workloads.
-- A failed application health check attempts to start the previous image. Old images are retained for rollback; monitor disk space. Container log files rotate.
-- Deleting the stack **retains the root EBS volume and login secret**. These retained resources continue to cost money; inspect them and deliberately remove or back them up when retiring this workspace. There is no automatic backup policy in this initial deployment.
-- The initial instance is a single point of failure. This is an owner-operated deployment, not a multi-tenant production service.
+## Infrastructure and cost
 
-## Local checks
+The existing host remains one Amazon Linux 2023 ARM64 EC2 `t4g.small` (2 GiB), Docker, Nginx, CloudFront HTTPS and a VPC origin. The instance accepts port 80 only from the CloudFront service-managed group. No public SSH or port 3000 is opened. There is no NAT gateway, ALB, RDS or EKS.
 
-```sh
-npm ci
-npm run check
-npm test -- --runInBand
-npm run prepare:hosting
-```
+The public Docker image contains the Node app and production dependencies, without global coding CLIs. It runs as non-root with a read-only app filesystem, dropped Linux capabilities, no Docker socket, blocked instance metadata, rotating logs, 1,400 MiB RAM / 2,800 MiB combined RAM+swap, a 256 MiB `/tmp` filesystem and a 16 MiB temporary home. The public container does not mount the owner's old persistent workspace or provider environment file.
 
-The GitHub check additionally builds the ARM64 Docker image, verifies both CLI executables, validates shell and CloudFormation syntax, and exercises the real Nginx/backend connection without model credentials.
+Demo incurs no model API charges. Live model calls use the visitor's account; hosting costs still belong to the owner. Upload disabling reduces storage/processing exposure but does not eliminate EC2, disk, IPv4, CloudFront or retained-secret charges. The previous T4g trial discussion remains conditional on AWS terms and the account's remaining allowance; no current bill or zero-cost hosting is claimed. See [EC2 trial terms](https://aws.amazon.com/ec2/faqs/), [EBS](https://aws.amazon.com/ebs/pricing/), [IPv4](https://aws.amazon.com/vpc/pricing/) and [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/).
 
-AWS references: [VPC origins](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html), [VPC-origin WebSocket support announced May 2026](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-cloudfront-websockets-vpc-origins/), [WebSockets with CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-working-with.websockets.html), [authorization and caching](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/add-origin-custom-headers.html).
+## Operations and rollback
 
-## Later product work
+- Use **EC2 → Connect → Session Manager**. Startup logs: `/var/log/cloud-init-output.log`; app logs: `sudo docker logs agents-office`; active proxy: `/etc/nginx/nginx.conf`.
+- The publisher's existing OIDC role can run only this instance's constrained deployment document. It cannot update CloudFormation or EC2 networking. No new IAM permission is required for this rollout.
+- A deliberate old-release deployment selects that release's private `nginx.conf` and restores its password gate. Do not expose the old CLI server through the public proxy.
+- Initial stack bootstrap still creates the protected entry; the first publishing run activates the public configuration after app health succeeds. New stacks still require the CloudFront service-group parameter to be filled after AWS creates that managed group.
+- Stack deletion retains the root EBS volume and original login secret; inspect and deliberately retire or back up retained resources. Old Docker images also remain for rollback: monitor the 20 GiB disk and remove obsolete images deliberately before it fills.
+- This remains a single small host without an automatic backup or availability guarantee. No capacity claim for a large public audience is made.
 
-The requested two-version product is a later phase: a public demo as the primary entry, and a separate real-use version with user-supplied API credentials. This deployment does not claim either version has been implemented.
+AWS references: [SSM document version updates](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ssm-document.html), [CloudFront VPC origins](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html).

@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
+The default `npm start` now runs `server/publicServer.js`: public Demo and per-connection visitor API modes. See `server/hostedSession.js` and `server/providerApi.js`. No public path invokes the original CLI runner, shared state or filesystem. Uploads are disabled. `npm run start:local` starts the original trusted single-user version described below; keep the two runtimes separate.
+
 "Virtual Office" — a 2D pixel-art game (Phaser 3) where each on-screen NPC is a real Claude Code agent. The player walks up to an NPC to chat with that agent, or talks to the **PM** agent which decomposes a request into tasks, delegates them to other agents (visualized as the PM walking over and handing off work), and runs them as actual `claude` CLI subprocesses against real project directories.
 
 UI strings and agent system prompts are in Chinese; code and identifiers are in English.
@@ -11,13 +13,14 @@ UI strings and agent system prompts are in Chinese; code and identifiers are in 
 ## Commands
 
 ```bash
-npm start        # start Express + WebSocket server on :3000 (serves client/ statically)
+npm start        # public Demo + visitor API server on :3000
+npm run start:local # original trusted local CLI workspace
 npm test         # run all Jest tests
 npx jest tests/pmOrchestrator.test.js          # single test file
 npx jest -t "scheduleTasks"                    # single test by name
 ```
 
-There is no build step or linter. The client is plain ES modules loaded directly in the browser; Phaser is pulled from a CDN in `client/index.html`. Just reload the browser after editing client code.
+There is no frontend build step. `npm run check` checks JavaScript syntax; `npm test` includes public-runtime isolation, streaming fixtures and real HTTP/WebSocket integration. The active client is native DOM/SVG in `client/src/app.js`; the older Phaser sources remain for reference.
 
 ## Architecture
 

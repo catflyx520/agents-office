@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "type": "commonjs",
   "scripts": {
-    "start": "node server/index.js",
+    "start": "node server/publicServer.js",
+    "start:local": "node server/index.js",
     "test": "jest",
     "check": "node scripts/check.mjs",
     "prepare:hosting": "node scripts/prepare-hosting.mjs"

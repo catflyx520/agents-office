@@ -12,28 +12,54 @@ curl --fail --silent --show-error --location --retry 3 \
   | tar -xz --strip-components=1 -C "$release_dir"
 docker build --pull -t "agents-office:$release_sha" "$release_dir"
 previous_image="$(docker inspect --format '{{.Config.Image}}' agents-office 2>/dev/null || true)"
+previous_proxy="$(mktemp)"
+cp /etc/nginx/nginx.conf "$previous_proxy"
+trap 'rm -f "$previous_proxy"' EXIT
 docker rm -f agents-office 2>/dev/null || true
 start_office() {
+  local -a workspace_flags=(-v /var/lib/agents-office/home:/home/node:rw --env-file /etc/agents-office/providers.env)
+  if [ "$(docker image inspect --format '{{index .Config.Labels "org.agents-office.access"}}' "$1")" = 'public' ]; then
+    # Public visitors never receive the owner's old home, keys or CLI login.
+    workspace_flags=(--tmpfs /home/node:rw,uid=1000,gid=1000,size=16m)
+  fi
   docker run -d --name agents-office --restart unless-stopped \
     --read-only --cap-drop ALL --security-opt no-new-privileges:true \
     --memory 1400m --memory-swap 2800m --pids-limit 256 \
     --log-opt max-size=10m --log-opt max-file=3 \
     --tmpfs /tmp:rw,nosuid,size=256m \
     -p 127.0.0.1:3000:3000 \
-    --env-file /etc/agents-office/providers.env \
-    -v /var/lib/agents-office/home:/home/node:rw \
+    "${workspace_flags[@]}" \
     "$1" >/dev/null
 }
 start_office "agents-office:$release_sha"
+activate_proxy() {
+  # Bootstrap checks its private entry; publication activates the public proxy.
+  if ! systemctl is-active --quiet nginx; then return 0; fi
+  local proxy_file="$release_dir/deployment/nginx.conf"
+  local expected_status=401
+  if [ -f "$release_dir/deployment/nginx.public.conf" ]; then
+    proxy_file="$release_dir/deployment/nginx.public.conf"
+    expected_status=200
+  fi
+  install -m 644 "$proxy_file" /etc/nginx/nginx.conf || return 1
+  nginx -t || return 1
+  systemctl reload nginx || return 1
+  test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1/)" = "$expected_status"
+}
 for ((attempt = 0; attempt < 60; attempt++)); do
   if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
-    printf '%s\n' "$release_sha" > /var/lib/agents-office/release-commit
-    echo "Release healthy: $release_sha"
-    exit 0
+    if activate_proxy; then
+      printf '%s\n' "$release_sha" > /var/lib/agents-office/release-commit
+      echo "Release healthy: $release_sha"
+      exit 0
+    fi
+    break
   fi
   sleep 3
 done
 echo 'New release failed its health check' >&2
 docker rm -f agents-office >/dev/null 2>&1 || true
 if [ -n "$previous_image" ]; then start_office "$previous_image"; fi
+install -m 644 "$previous_proxy" /etc/nginx/nginx.conf
+if systemctl is-active --quiet nginx; then nginx -t && systemctl reload nginx; fi
 exit 1

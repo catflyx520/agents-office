@@ -7,7 +7,6 @@ const path = require('path');
 const os = require('os');
 const { handleMessage, checkAutoCompact, getAutoCompactK, getCompactLog, setUsageProvider, getOfficeName } = require('./wsHandler');
 const { saveAgent, listAgents } = require('./agentManager');
-const { saveUpload } = require('./uploads');
 const { getSession } = require('./sessionStore');
 const { logBus } = require('./claudeRunner');
 const { report } = require('./tokenUsage');
@@ -30,13 +29,8 @@ app.use(express.static(path.join(__dirname, '../client'), {
 }));
 
 // 文件上传：客户端把原始字节 POST 过来（不用 multipart，免依赖），存盘后返回绝对路径
-app.post('/upload', express.raw({ type: '*/*', limit: '25mb' }), (req, res) => {
-  try {
-    const saved = saveUpload(req.query.name, req.body);
-    res.json({ name: path.basename(saved).replace(/^\d+-/, ''), path: saved });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+app.all('/upload', (_req, res) => {
+  res.status(410).json({ code: 'UPLOADS_DISABLED', error: 'Uploads are disabled to reduce running costs.' });
 });
 
 const server = http.createServer(app);

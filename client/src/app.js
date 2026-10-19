@@ -2,6 +2,7 @@ import { tr, initLanguage, getLanguage } from './i18n.js';
 // client/src/app.js
 // 「小办公室」前端控制器（纯 DOM/SVG，替代原 Phaser 版），接到真实 WebSocket 后端。
 import { WSClient } from './net/WSClient.js';
+import { setupHostedOffice, renderMarkdown } from './hosted.js';
 
 const NEAR_DIST = 120;
 const WALK_SPEED = 3.4;
@@ -53,6 +54,7 @@ class Office {
 
     this._bindUI();
     this._bindWS();
+    setupHostedOffice(this);
     this._applyModeUI();
     this._applyPlayerBadge();
     this._startLoop();
@@ -215,7 +217,7 @@ class Office {
     return out;
   }
 
-  _saveHistories() { try { localStorage.setItem(HIST_KEY, JSON.stringify(this.histories)); } catch {} }
+  _saveHistories() { if (this.hosted) return; try { localStorage.setItem(HIST_KEY, JSON.stringify(this.histories)); } catch {} }
   _loadPlayer() { try { return { x: 300, y: 430, name: 'YOU', accent: '#ff8c42', ...(JSON.parse(localStorage.getItem('vo_office_player')) || {}) }; } catch { return { x: 300, y: 430, name: 'YOU', accent: '#ff8c42' }; } }
   _savePlayer() { try { localStorage.setItem('vo_office_player', JSON.stringify(this.player)); } catch {} }
   _hist(id) { return (this.histories[id] = this.histories[id] || []); }
@@ -228,7 +230,11 @@ class Office {
     this.ws.addEventListener('agent_status', (e) => this._onAgentStatus(e.detail));
     this.ws.addEventListener('agent_bubble', (e) => this._onAgentBubble(e.detail));
     this.ws.addEventListener('agent_move',   (e) => this._onAgentMove(e.detail));
-    this.ws.addEventListener('error',        (e) => this._toast(e.detail.message));
+    this.ws.addEventListener('error', (e) => {
+      if (e.detail.agentId) this.pending[e.detail.agentId] = false;
+      else this.pending = {};
+      this._renderChat(); this._toast(e.detail.message);
+    });
     this.ws.addEventListener('log',          (e) => this._onLog(e.detail));
     this.ws.addEventListener('usage',        (e) => this._onUsage(e.detail.report));
     this.ws.addEventListener('compact_status', (e) => this._onCompactStatus(e.detail));
@@ -740,11 +746,7 @@ class Office {
       bubble.className = isUser ? 'og-bubble-user' : 'og-bubble-bot';
       bubble.style.cssText = isUser ? userB : botB;
       
-      if (window.marked && typeof window.marked.parse === 'function') {
-        bubble.innerHTML = window.marked.parse(m.text || '');
-      } else {
-        bubble.textContent = m.text;
-      }
+      renderMarkdown(bubble, m.text || '');
       
       if (m === streaming) {
         const caret = document.createElement('span');
@@ -813,6 +815,7 @@ class Office {
     this.ws.send({ type: 'confirm_plan', agentId: mid });
   }
   _cancelPlan(m) {
+    if (this.hosted) this.ws.send({ type: 'cancel_plan' });
     m.isPlan = false;
     const mid = m.planAgentId || 'pm';
     const mgr = this.byId[mid];
@@ -824,6 +827,7 @@ class Office {
   // ── 发送 / 取消 / 上传 ────────────────────────────────────
   // fresh=true（Shift+Enter）：本条不带历史 session，让 agent 用全新会话处理
   _send(fresh = false) {
+    if (this.ws.ws.readyState !== WebSocket.OPEN) { this._toast(tr('连接已断开，请刷新页面。')); return; }
     const a = this.byId[this.activeId];
     if (!a) { this._toast(tr("先走近一位同事再发消息")); return; }
     const input = $('og-input');
@@ -842,7 +846,7 @@ class Office {
     this._renderChat();
     if (fresh) this._toast(tr("🆕 本条使用全新会话（不带之前的记忆）"));
 
-    this.ws.send({ type: 'chat', agentId: a.id, message: text, attachments: files, fresh });
+    this.ws.send({ type: 'chat', agentId: a.id, message: text, attachments: files, fresh, language: getLanguage() });
   }
 
   _cancel() {
@@ -859,17 +863,7 @@ class Office {
   }
 
   async _uploadFiles(fileList) {
-    for (const file of fileList) {
-      try {
-        const res = await fetch(`/upload?name=${encodeURIComponent(file.name)}`, {
-          method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file,
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        this.attachments.push({ name: data.name, path: data.path });
-        this._renderPending();
-      } catch (err) { this._toast(tr("上传失败: ") + err.message); }
-    }
+    this._toast(tr('为减少运行成本，暂不支持上传文件。'));
   }
 
   _renderPending() {
@@ -1289,7 +1283,7 @@ class Office {
 
   // ── 用量牌 + 明细 ─────────────────────────────────────────
   _onUsage(report) {
-    if (!report) return;
+    if (!report) { this.usage = null; this._renderBoards(); return; }
     this.usage = report;
     this._renderBoards();
     this._renderHeader(); // 刷新聊天框顶部 session 徽章的「今日」用量

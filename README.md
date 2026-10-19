@@ -1,75 +1,68 @@
 # Agents Office 🏢
 
-A pixel-art office for coordinating **Claude Code and Codex agents** on your local projects.
+A visual office for AI teamwork. Explore a scripted Demo, or connect your own OpenAI / Claude API for real conversations, task planning, teammate handoffs and code suggestions.
 
-像素风 AI 办公室：向 PM 描述需求，由它拆分任务并协调多个 agent 在本地项目中执行。
+像素风 AI 办公室：默认先体验 Demo；正式模式使用访客自己的 AI API。为减少运行成本，两个模式均禁用文件上传。
 
-![Agents Office — virtual office and agent chat / 虚拟办公室与 Agent 对话](docs/images/office-screenshot.png)
+![Agents Office](docs/images/office-screenshot.png)
 
-## Features / 功能
+## Two modes
 
-- Walk around the office and chat with agents · 像素办公室与角色对话
-- PM task planning, team coordination, and confirmation mode · 任务编排与确认模式
-- Session history, compaction, and usage tracking · 会话记录、压缩和用量统计
+| Mode | Behavior | AI usage |
+| --- | --- | --- |
+| **Demo — default** | Preset to-do app workflow showing PM planning, dependent tasks, teammate replies and a summary. Every sample is labeled. | No provider calls or model tokens. |
+| **Live — your AI** | Visitor supplies an OpenAI or Anthropic API key and editable model ID. Replies stream from the chosen provider; PM can delegate up to three teammate tasks and summarize their proposals. | Uses that visitor's API account. A team workflow can make multiple requests. |
 
-**Stack:** Phaser 3 · Node.js · Express · WebSocket
+The web version provides chat, plans and code suggestions. It does not execute shell commands, inspect project directories, run tests or change repository files. Upload controls are disabled, and `/upload` rejects requests before reading their bodies. The original local CLI runner remains available separately.
 
-## AWS deployment
+**Hosted address:** [Agents Office](https://d396om3j4lmtlb.cloudfront.net). The previous private version was verified on AWS; activation of this new password-free release requires the one-time publishing-document update in the [deployment guide](docs/AWS-DEPLOYMENT.md). This README does not claim the public migration is complete.
 
-The current full backend has an independent deployment configuration: EC2 + Docker, CloudFront HTTPS/WebSocket access, persistent workspace data, and a generated website access password. It is a private single-user workspace. The public demo and per-user API connection versions are later work.
+## Run locally
 
-**Verified private workspace:** [Open Agents Office](https://d396om3j4lmtlb.cloudfront.net). Sign in as `office` using the generated password in this stack's AWS Secrets Manager secret. Provider access must be configured separately on the server before running model tasks.
-
-The [successful deployment](https://github.com/catflyx520/agents-office/actions/runs/39206895715) verified authenticated HTTP, the real agent roster, WebSocket access, and a 70-second idle heartbeat check on October 18, 2026 (America/Los_Angeles). No model task was submitted. See the [AWS deployment guide](docs/AWS-DEPLOYMENT.md) for costs, console setup, checks and operation.
-
-## Quick start / 快速开始
-
-Use Node.js 24 and install the CLI you want to use (`claude` or `codex`) separately.
-
-准备 Node.js 24，并单独安装要使用的 Claude Code 或 Codex CLI。
+Install Node.js 24, then:
 
 ```sh
 git clone https://github.com/catflyx520/agents-office.git
 cd agents-office
-npm ci
-```
-
-If your CLI is already logged in, no key is required. To use API keys, copy `.env.example` to `.env` in the project root and fill in the provider you need:
-
-已有 CLI 账户登录时可直接使用；使用 API key 时，在项目根目录将 `.env.example` 复制为 `.env`，填写对应 key：
-
-```dotenv
-ANTHROPIC_API_KEY=
-CODEX_API_KEY=
-```
-
-PowerShell: `Copy-Item .env.example .env` · macOS/Linux: `cp .env.example .env`
-
-```sh
+npm install
 npm start
 ```
 
-Open **http://localhost:3000**, select a provider in **模型与登录**, and set each agent's `workDir` to your project before assigning tasks. Restart after changing `.env`.
+Open **http://localhost:3000**. Demo needs no account, `.env`, API key or CLI installation. Select **Live · Your AI** to enter a provider, model ID and your API key. Saving the key makes no model request; it is marked verified only after a successful reply. **中文 / English** changes the interface language.
 
-打开页面后选择服务商，并先将各 agent 的 `workDir` 改为自己的项目目录。修改 `.env` 后重启服务。
+`npm ci` is also available for a clean installation of the exact dependency versions in the lockfile.
 
-Use **中文 / English** in the toolbar to change the interface language; your choice is remembered. Chat messages and custom names keep their original content.
+## Visitor data
 
-顶部工具栏可切换 **中文 / English**，下次打开会记住选择；聊天内容和自定义名称保持原文。
+- Each WebSocket connection owns its key, agents, conversation context, pending plans and provider-reported usage. Replies are never broadcast to other visitors.
+- Keys pass through this server to the selected provider over HTTPS. They are held only in memory, not written to files, logs, `.env`, localStorage or sessionStorage. The form clears its key field after submission.
+- Disconnecting, refreshing, returning to Demo or 15 minutes without client activity clears the server session and aborts active calls. Reconnect your AI to continue. Chat is not persisted by the public app.
+- The public runtime never reads the owner's model credentials, CLI logins, projects or saved local sessions. Provider URLs are fixed to official OpenAI / Anthropic endpoints.
+- Requests have context/output limits, timeouts and a bounded number of concurrent provider calls. Token counts come from provider responses, not estimated dollar charges. Demo does not fabricate usage.
 
-## Configuration / 配置
+## Local CLI version
 
-`.env` is ignored by Git. CLI paths, Windows notes, agent directories, and troubleshooting: **[Setup guide / 配置指南](docs/SETUP.md)**.
+For the original single-user coding workspace, install your chosen Claude Code / Codex CLI and use:
 
-`.env` 已被 Git 忽略；CLI 路径、Windows 使用限制及工作目录设置见配置指南。
+```sh
+npm run start:local
+```
 
-**Local use:** Agents can modify files and run commands with approval checks bypassed; Codex also bypasses its sandbox. Use only with trusted projects.
+CLI login or the ignored `.env` configures this local version. See [Setup](docs/SETUP.md). It can modify local files and run commands with permissive agent execution settings; keep it on a trusted computer and do not publish that single-user server as the public app. Uploads remain disabled.
 
-**本地使用：** agent 会跳过执行审批并修改文件、运行命令；Codex 同时跳过沙箱。请只对可信项目使用。
+## Development and AWS
 
-## Development
+```sh
+npm run check
+npm test -- --runInBand
+npm run prepare:hosting
+```
 
-Run `npm test` for the Jest test suite. Source: `client/` and `server/`.
+The ARM64 CI check builds the public Docker image and verifies the real Nginx/WebSocket path, Demo workflow, upload rejection and visitor connection state without making paid AI calls. API streaming tests use isolated provider fixtures; a real paid key has not been used for acceptance.
+
+**Stack:** native JavaScript / DOM / SVG · Node.js 24 · Express · WebSocket · EC2 Docker · CloudFront. No frontend compilation step is required.
+
+Source: `client/`, `server/`, `tests/`, `deployment/`. [AWS deployment and rollout](docs/AWS-DEPLOYMENT.md) includes the existing account resources, console step, rollback and costs.
 
 ## License
 

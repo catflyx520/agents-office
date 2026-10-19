@@ -12,7 +12,7 @@ for (const [token, replacement] of Object.entries({
 })) bootstrap = bootstrap.replaceAll(`__${token}__`, replacement);
 const template = {
   AWSTemplateFormatVersion: '2010-09-09',
-  Description: 'Current Agents Office full backend: private workspace, EC2 Docker, CloudFront VPC origin and Basic authentication. No provider API keys included.',
+  Description: 'Agents Office EC2 and CloudFront host. Public Demo and visitor-owned AI API modes are activated by the publishing workflow. No provider API keys included.',
   Parameters: {
     ReleaseCommit: { Type: 'String', AllowedPattern: '[a-f0-9]{40}', Description: 'Full 40-character reviewed Git commit from catflyx520/agents-office.' },
     InstanceType: { Type: 'String', Default: 't4g.small', AllowedValues: ['t4g.micro', 't4g.small', 't4g.medium'], Description: '2 GiB initially, as selected by the owner.' },
@@ -83,10 +83,16 @@ const template = {
       CustomErrorResponses: [403, 500, 502, 503, 504].map(code => ({ ErrorCode: code, ErrorCachingMinTTL: 0 })),
       ViewerCertificate: { CloudFrontDefaultCertificate: true },
     }, Tags: tag } },
-    DeployDocument: { Type: 'AWS::SSM::Document', Properties: { DocumentType: 'Command', Content: {
+    DeployDocument: { Type: 'AWS::SSM::Document', Properties: { DocumentType: 'Command', UpdateMethod: 'NewVersion', Content: {
       schemaVersion: '2.2', description: 'Deploy a reviewed Agents Office Git commit',
       parameters: { Commit: { type: 'String', allowedPattern: '^[a-f0-9]{40}$', interpolationType: 'ENV_VAR' } },
-      mainSteps: [{ action: 'aws:runShellScript', name: 'DeployOffice', inputs: { timeoutSeconds: '1200', runCommand: ['/opt/agents-office/deploy-release.sh "$SSM_Commit"'] } }],
+      mainSteps: [{ action: 'aws:runShellScript', name: 'DeployOffice', inputs: { timeoutSeconds: '1200', runCommand: [
+        'set -eu',
+        'deploy_script="$(mktemp)"',
+        'trap \'rm -f "$deploy_script"\' EXIT',
+        'curl --fail --silent --show-error --location --retry 3 "https://raw.githubusercontent.com/catflyx520/agents-office/$SSM_Commit/deployment/deploy-release.sh" -o "$deploy_script"',
+        'bash "$deploy_script" "$SSM_Commit"',
+      ] } }],
     } } },
     PublisherRole: { Type: 'AWS::IAM::Role', Properties: {
       Description: 'Deploy and verify only the Agents Office instance from this repository main', MaxSessionDuration: 3600,

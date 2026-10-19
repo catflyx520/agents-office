@@ -28,23 +28,18 @@ jobs:
       - run: python -m pip install cfn-lint==1.57.2
       - run: cfn-lint deployment/AgentsOfficeHosting.template.json
       - run: shellcheck deployment/bootstrap.sh deployment/deploy-release.sh docker-entrypoint.sh
-      - name: Build the real ARM64 application and installed CLIs
+      - name: Build the public ARM64 application
         run: |
           docker build -t agents-office:ci .
-          docker run --rm --entrypoint claude agents-office:ci --version
-          docker run --rm --entrypoint codex agents-office:ci --version
-      - name: Verify the reverse proxy and full backend without provider calls
-        env:
-          OFFICE_TEST_PASSWORD: ci-fixture-only
+      - name: Verify public modes and proxy without paid provider calls
         run: |
           docker network create office-ci
           docker run -d --name office-ci --network office-ci --read-only --cap-drop ALL --security-opt no-new-privileges:true --memory 1400m --memory-swap 2800m --pids-limit 256 --tmpfs /tmp:rw,size=256m --tmpfs /home/node:rw,uid=1000,gid=1000 agents-office:ci
           mkdir -p artifacts
-          printf 'office:%s\n' "$(openssl passwd -apr1 "$OFFICE_TEST_PASSWORD")" > artifacts/office.htpasswd
-          sed 's|127.0.0.1:3000|office-ci:3000|' deployment/nginx.conf > artifacts/nginx.conf
-          docker run -d --name office-proxy --network office-ci -p 127.0.0.1:8080:80 -v "$PWD/artifacts/nginx.conf:/etc/nginx/nginx.conf:ro" -v "$PWD/artifacts/office.htpasswd:/etc/nginx/office.htpasswd:ro" nginx:stable-alpine
+          sed 's|127.0.0.1:3000|office-ci:3000|' deployment/nginx.public.conf > artifacts/nginx.conf
+          docker run -d --name office-proxy --network office-ci -p 127.0.0.1:8080:80 -v "$PWD/artifacts/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:stable-alpine
           for attempt in $(seq 1 30); do
-            if curl -fsS -u "office:$OFFICE_TEST_PASSWORD" http://127.0.0.1:8080/healthz; then break; fi
+            if curl -fsS http://127.0.0.1:8080/healthz; then break; fi
             sleep 2
           done
           node scripts/smoke-hosted.cjs
@@ -66,7 +61,6 @@ jobs:
       OFFICE_INSTANCE_ID: ${{ vars.OFFICE_INSTANCE_ID }}
       OFFICE_DEPLOY_DOCUMENT: ${{ vars.OFFICE_DEPLOY_DOCUMENT }}
       OFFICE_SITE_URL: ${{ vars.OFFICE_SITE_URL }}
-      OFFICE_LOGIN_SECRET_ARN: ${{ vars.OFFICE_LOGIN_SECRET_ARN }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
