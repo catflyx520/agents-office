@@ -25,7 +25,7 @@ start_office() {
     "$1" >/dev/null
 }
 start_office "agents-office:$release_sha"
-for attempt in $(seq 1 60); do
+for ((attempt = 0; attempt < 60; attempt++)); do
   if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
     printf '%s\n' "$release_sha" > /var/lib/agents-office/release-commit
     echo "Release healthy: $release_sha"
