@@ -9,6 +9,7 @@ async function verify(base, idleMs = 0) {
   assert.match(await response.text(), /src\/app\.js/);
   for (const asset of ['/src/app.js', '/src/hosted.js', '/hosted.css']) {
     const result = await fetch(new URL(asset, root)); assert.equal(result.status, 200, asset);
+    await result.arrayBuffer();
   }
   const health = await fetch(new URL('/healthz', root));
   assert.equal(health.status, 200);
@@ -19,12 +20,13 @@ async function verify(base, idleMs = 0) {
   assert.equal((await upload.json()).code, 'UPLOADS_DISABLED');
   const crossSite = await fetch(root, { headers: { origin: 'https://untrusted.example' } });
   assert.equal(crossSite.status, 403, 'Cross-site request must be blocked');
+  await crossSite.arrayBuffer();
   const socketUrl = new URL(root); socketUrl.protocol = root.protocol === 'https:' ? 'wss:' : 'ws:';
   await new Promise((resolve, reject) => {
     const client = new WebSocket(socketUrl, { headers: { origin: 'https://untrusted.example' }, handshakeTimeout: 10000 });
     client.on('error', () => {});
     client.on('open', () => { client.terminate(); reject(new Error('Cross-site socket opened')); });
-    client.on('unexpected-response', (_req, res) => { res.resume(); client.terminate(); try { assert.equal(res.statusCode, 403); resolve(); } catch (error) { reject(error); } });
+    client.on('unexpected-response', (_req, res) => { res.destroy(); client.terminate(); try { assert.equal(res.statusCode, 403); resolve(); } catch (error) { reject(error); } });
     client.on('error', reject);
   });
   const client = new WebSocket(socketUrl, { headers: { origin }, handshakeTimeout: 10000 });
@@ -58,7 +60,7 @@ async function verify(base, idleMs = 0) {
       const before = pings; await delay(idleMs);
       assert.equal(client.readyState, WebSocket.OPEN); assert.ok(pings - before >= 2, 'Heartbeat must survive idle');
     }
-  } finally { client.close(); }
+  } finally { client.terminate(); }
   console.log('PASS: password-free HTTP, uploads disabled, scripted Demo, visitor-key mode, WebSocket and cross-site rejection' + (idleMs ? ', 70-second idle heartbeat' : '') + '. No paid AI request was made.');
 }
 module.exports = { verify };

@@ -44,7 +44,18 @@ activate_proxy() {
   install -m 644 "$proxy_file" /etc/nginx/nginx.conf || return 1
   nginx -t || return 1
   systemctl reload nginx || return 1
-  test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1/)" = "$expected_status"
+  local proxy_probe proxy_code=000
+  # systemctl's reload completes before old Nginx workers have exited.
+  for ((proxy_probe = 0; proxy_probe < 20; proxy_probe++)); do
+    proxy_code="$(curl --silent --max-time 2 --output /dev/null --write-out '%{http_code}' http://127.0.0.1/)" || proxy_code=000
+    if [ "$proxy_code" = "$expected_status" ]; then
+      echo "Proxy ready: HTTP $proxy_code"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Proxy activation failed: expected HTTP $expected_status, received $proxy_code" >&2
+  return 1
 }
 for ((attempt = 0; attempt < 60; attempt++)); do
   if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
