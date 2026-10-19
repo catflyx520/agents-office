@@ -16,12 +16,20 @@ async function main() {
   const result = aws('ssm', 'send-command', '--document-name', document,
     '--instance-ids', instanceId, '--parameters', JSON.stringify({ Commit: [commit] }), '--timeout-seconds', '1200');
   const commandId = result.Command.CommandId;
+  console.log('Host deployment command:', commandId);
   let finished = false;
   for (let attempt = 0; attempt < 120; attempt++) {
     await delay(10000);
     const invocation = aws('ssm', 'get-command-invocation', '--command-id', commandId, '--instance-id', instanceId);
     if (invocation.Status === 'Success') { finished = true; break; }
     if (['Failed', 'TimedOut', 'Cancelled', 'Cancelling'].includes(invocation.Status)) {
+      // This command runs only reviewed deployment scripts and public builds;
+      // it never reads visitor/provider keys. Keep diagnostics bounded.
+      console.error('Host deployment diagnostics:', JSON.stringify({
+        status: invocation.StatusDetails, responseCode: invocation.ResponseCode,
+        stderr: (invocation.StandardErrorContent || '').slice(-3500),
+        stdout: (invocation.StandardOutputContent || '').slice(-3500),
+      }));
       throw new Error(`Deployment ${invocation.Status}. Inspect the command in the SSM console.`);
     }
   }
