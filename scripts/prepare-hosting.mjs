@@ -15,7 +15,7 @@ const template = {
   Description: 'Current Agents Office full backend: private workspace, EC2 Docker, CloudFront VPC origin and Basic authentication. No provider API keys included.',
   Parameters: {
     ReleaseCommit: { Type: 'String', AllowedPattern: '[a-f0-9]{40}', Description: 'Full 40-character reviewed Git commit from catflyx520/agents-office.' },
-    InstanceType: { Type: 'String', Default: 't4g.micro', AllowedValues: ['t4g.micro', 't4g.small', 't4g.medium'], Description: '1 GiB initially, as selected by the owner; larger sizes remain available.' },
+    InstanceType: { Type: 'String', Default: 't4g.small', AllowedValues: ['t4g.micro', 't4g.small', 't4g.medium'], Description: '2 GiB initially, as selected by the owner.' },
     LatestAmi: { Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>', Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64' },
   },
   Resources: {

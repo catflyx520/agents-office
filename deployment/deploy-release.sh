@@ -16,9 +16,9 @@ docker rm -f agents-office 2>/dev/null || true
 start_office() {
   docker run -d --name agents-office --restart unless-stopped \
     --read-only --cap-drop ALL --security-opt no-new-privileges:true \
-    --memory 640m --memory-swap 1792m --pids-limit 256 \
+    --memory 1400m --memory-swap 2800m --pids-limit 256 \
     --log-opt max-size=10m --log-opt max-file=3 \
-    --tmpfs /tmp:rw,nosuid,size=96m \
+    --tmpfs /tmp:rw,nosuid,size=256m \
     -p 127.0.0.1:3000:3000 \
     --env-file /etc/agents-office/providers.env \
     -v /var/lib/agents-office/home:/home/node:rw \
