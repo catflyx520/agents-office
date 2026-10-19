@@ -1,10 +1,12 @@
 # Current-version AWS deployment
 
-Status: the user created `AgentsOfficeHosting`. The instance deployment succeeded, but the first public check returned HTTP 504. Live acceptance is pending the CloudFront source-security-group fix below; the URL is not yet claimed as usable.
+Status: deployed and verified on October 18, 2026 (America/Los_Angeles). The owner created and updated `AgentsOfficeHosting`; the [successful publishing workflow, attempt 2](https://github.com/catflyx520/agents-office/actions/runs/39206895715/attempts/2) deployed application commit `4fbd193efb3f4c84d17eb3c93a6843696c69b4d1`. Authenticated HTML and health responses, the real PM agent roster, WebSocket authentication, cross-site rejection, and a 70-second idle connection with heartbeat frames all passed. Anonymous HTTP and WebSocket requests return 401. No model task or provider call was submitted.
 
-Provisioned URL: `https://d396om3j4lmtlb.cloudfront.net`, distribution `E3JKWOH1Q3R2GJ`, instance `i-0c5c52fb481ee20cc`. These identify this private workspace and are not credentials.
+Verified private URL: [Agents Office](https://d396om3j4lmtlb.cloudfront.net), distribution `E3JKWOH1Q3R2GJ`, instance `i-0c5c52fb481ee20cc`. These identify this private workspace and are not credentials. Website username: `office`. Retrieve the password yourself from Secrets Manager secret `LoginSecret-0DjcjaEpbtus` in Ohio (`us-east-2`). Provider credentials and model execution remain unconfigured and unverified.
 
 ## Fix the initial CloudFront origin timeout
+
+Resolved for this stack: `CloudFrontSourceSecurityGroupId=sg-08edba2e4f0be6844`, the service-managed group in VPC `vpc-017cadbb751145c31`. The following steps document the fix for future stack creation or recovery; this stack's public verification has passed.
 
 The initial template allowed only the VPC CIDR as the HTTP source. AWS documents CloudFront origin access through its origin-facing managed prefix list or its service-managed security group; the template now accepts the latter explicitly. The publishing role deliberately has no permission to change EC2 networking.
 
@@ -23,7 +25,7 @@ This runs the current Express/WebSocket backend, real CLI subprocess support, up
 
 - One Amazon Linux 2023 ARM64 EC2 instance (`t4g.small`, 2 GiB), selected by the owner, with Docker, Nginx and SSM management.
 - The existing application and pinned Claude Code/Codex CLIs run as a non-root user in a container. The application filesystem is read-only; its home/workspace directory is persistent and writable.
-- CloudFront provides the HTTPS entry and a **VPC origin** connection to the instance. HTTP is accepted only from the dedicated VPC, not the public Internet. The instance's public IPv4 is for outbound package/provider/SSM access; there is no inbound SSH or public port 3000.
+- CloudFront provides the HTTPS entry and a **VPC origin** connection to the instance. The instance security group accepts HTTP only from the CloudFront service-managed security group. The instance's public IPv4 is for outbound package/provider/SSM access; there is no inbound SSH or public port 3000.
 - Nginx checks a generated Basic authentication password for every HTTP and WebSocket request. CloudFront forwards viewer headers and disables caching. Cross-site browser origins are rejected.
 - No Root keys, provider credentials, local projects, prior sessions, or private files are copied into the image. Docker cannot access the host Docker socket or instance metadata. The host role can read only this stack's website-login secret plus SSM management and its own stack signal.
 

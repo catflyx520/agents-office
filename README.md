@@ -18,7 +18,9 @@ A pixel-art office for coordinating **Claude Code and Codex agents** on your loc
 
 The current full backend has an independent deployment configuration: EC2 + Docker, CloudFront HTTPS/WebSocket access, persistent workspace data, and a generated website access password. It is a private single-user workspace. The public demo and per-user API connection versions are later work.
 
-Deployment is prepared; the live URL will be added after the AWS stack is created and verified. See the [AWS deployment guide](docs/AWS-DEPLOYMENT.md) for costs, console setup, checks and operation.
+**Verified private workspace:** [Open Agents Office](https://d396om3j4lmtlb.cloudfront.net). Sign in as `office` using the generated password in this stack's AWS Secrets Manager secret. Provider access must be configured separately on the server before running model tasks.
+
+The [successful deployment](https://github.com/catflyx520/agents-office/actions/runs/39206895715) verified authenticated HTTP, the real agent roster, WebSocket access, and a 70-second idle heartbeat check on October 18, 2026 (America/Los_Angeles). No model task was submitted. See the [AWS deployment guide](docs/AWS-DEPLOYMENT.md) for costs, console setup, checks and operation.
 
 ## Quick start / 快速开始
 
