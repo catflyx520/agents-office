@@ -1,6 +1,21 @@
 # Current-version AWS deployment
 
-Status: prepared, awaiting creation of the `AgentsOfficeHosting` stack and live verification. No URL is claimed yet.
+Status: the user created `AgentsOfficeHosting`. The instance deployment succeeded, but the first public check returned HTTP 504. Live acceptance is pending the CloudFront source-security-group fix below; the URL is not yet claimed as usable.
+
+Provisioned URL: `https://d396om3j4lmtlb.cloudfront.net`, distribution `E3JKWOH1Q3R2GJ`, instance `i-0c5c52fb481ee20cc`. These identify this private workspace and are not credentials.
+
+## Fix the initial CloudFront origin timeout
+
+The initial template allowed only the VPC CIDR as the HTTP source. AWS documents CloudFront origin access through its origin-facing managed prefix list or its service-managed security group; the template now accepts the latter explicitly. The publishing role deliberately has no permission to change EC2 networking.
+
+1. In EC2, select instance `i-0c5c52fb481ee20cc` and note its VPC ID under **Networking**.
+2. Open **Security Groups**, filter by that VPC ID, and find the group whose name starts with `CloudFront-VPCOrigins-Service-SG`. Copy its `sg-...` ID. Do not edit the AWS-managed group itself.
+3. In CloudFormation, select `AgentsOfficeHosting` → **Update stack** → replace the template with the newly generated `deployment/AgentsOfficeHosting.template.json`.
+4. Set `CloudFrontSourceSecurityGroupId` to the copied ID. Keep the existing `ReleaseCommit`, `InstanceType`, and AMI values.
+5. Review the change set: the instance security group's HTTP ingress changes to the CloudFront service group. No instance replacement or broader IAM permissions are intended. Apply the update and wait for `UPDATE_COMPLETE`.
+6. Rerun the failed deployment job and its live HTTP/WebSocket checks before calling the site deployed.
+
+No public `0.0.0.0/0` inbound rule is added. The initial blank parameter remains available only for first-stack creation, before AWS has created its CloudFront service-managed group. New stacks require this same follow-up configuration before live verification.
 
 This runs the current Express/WebSocket backend, real CLI subprocess support, uploads, and persistent agent/session state. It is **one private workspace for its owner**, not a public shared service, a simulated demo, or a per-user API-key product. The local `npm start` flow remains available.
 

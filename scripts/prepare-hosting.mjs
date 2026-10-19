@@ -16,8 +16,10 @@ const template = {
   Parameters: {
     ReleaseCommit: { Type: 'String', AllowedPattern: '[a-f0-9]{40}', Description: 'Full 40-character reviewed Git commit from catflyx520/agents-office.' },
     InstanceType: { Type: 'String', Default: 't4g.small', AllowedValues: ['t4g.micro', 't4g.small', 't4g.medium'], Description: '2 GiB initially, as selected by the owner.' },
+    CloudFrontSourceSecurityGroupId: { Type: 'String', Default: '', AllowedPattern: '^$|^sg-[a-f0-9]{8,17}$', Description: 'After initial creation, enter the AWS-managed CloudFront-VPCOrigins-Service-SG ID in this stack VPC to enable origin traffic.' },
     LatestAmi: { Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>', Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64' },
   },
+  Conditions: { HasCloudFrontSourceGroup: { 'Fn::Not': [{ 'Fn::Equals': [ref('CloudFrontSourceSecurityGroupId'), ''] }] } },
   Resources: {
     Vpc: { Type: 'AWS::EC2::VPC', Properties: { CidrBlock: '10.71.0.0/16', EnableDnsSupport: true, EnableDnsHostnames: true, Tags: tag } },
     Gateway: { Type: 'AWS::EC2::InternetGateway', Properties: { Tags: tag } },
@@ -28,7 +30,10 @@ const template = {
     SubnetRoute: { Type: 'AWS::EC2::SubnetRouteTableAssociation', Properties: { SubnetId: ref('Subnet'), RouteTableId: ref('RouteTable') } },
     SecurityGroup: { Type: 'AWS::EC2::SecurityGroup', Properties: {
       GroupDescription: 'HTTP only from the dedicated VPC, used by CloudFront private origin ENIs; no SSH or Internet ingress', VpcId: ref('Vpc'),
-      SecurityGroupIngress: [{ IpProtocol: 'tcp', FromPort: 80, ToPort: 80, CidrIp: '10.71.0.0/16' }],
+      SecurityGroupIngress: [{ 'Fn::If': ['HasCloudFrontSourceGroup',
+        { IpProtocol: 'tcp', FromPort: 80, ToPort: 80, SourceSecurityGroupId: ref('CloudFrontSourceSecurityGroupId') },
+        { IpProtocol: 'tcp', FromPort: 80, ToPort: 80, CidrIp: '10.71.0.0/16' },
+      ] }],
       Tags: tag,
     } },
     LoginSecret: { Type: 'AWS::SecretsManager::Secret', DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain', Properties: {
@@ -100,12 +105,17 @@ const template = {
     SiteUrl: { Value: sub('https://${Distribution.DomainName}') },
     InstanceId: { Value: ref('OfficeInstance') }, DistributionId: { Value: ref('Distribution') },
     LoginSecretArn: { Value: ref('LoginSecret') }, DeployRoleArn: { Value: attr('PublisherRole', 'Arn') }, DeployDocumentName: { Value: ref('DeployDocument') },
+    VpcId: { Value: ref('Vpc') }, InstanceSecurityGroupId: { Value: ref('SecurityGroup') },
   },
 };
 const r = template.Resources;
 assert.equal(r.CachePolicy.Properties.CachePolicyConfig.MaxTTL, 0);
 assert.equal(r.SecurityGroup.Properties.SecurityGroupIngress.length, 1);
-assert.notEqual(r.SecurityGroup.Properties.SecurityGroupIngress[0].CidrIp, '0.0.0.0/0');
+for (const rule of r.SecurityGroup.Properties.SecurityGroupIngress[0]['Fn::If'].slice(1)) {
+  assert.notEqual(rule.CidrIp, '0.0.0.0/0');
+  assert.equal(rule.FromPort, 80);
+  assert.equal(rule.ToPort, 80);
+}
 assert.equal(r.OfficeInstance.Properties.MetadataOptions.HttpTokens, 'required');
 assert.equal(r.OfficeInstance.Properties.CreditSpecification.CPUCredits, 'standard');
 assert.equal(r.Distribution.Properties.DistributionConfig.DefaultCacheBehavior.ViewerProtocolPolicy, 'redirect-to-https');
