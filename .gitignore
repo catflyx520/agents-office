@@ -4,3 +4,6 @@ node_modules/
 .env
 .env.*
 !.env.example
+artifacts/
+deployment/*.template.json
+__pycache__/

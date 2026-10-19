@@ -4,7 +4,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/index.js",
-    "test": "jest"
+    "test": "jest",
+    "check": "node scripts/check.mjs",
+    "prepare:hosting": "node scripts/prepare-hosting.mjs"
   },
   "dependencies": {
     "chokidar": "^3.6.0",

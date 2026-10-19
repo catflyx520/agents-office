@@ -14,6 +14,12 @@ A pixel-art office for coordinating **Claude Code and Codex agents** on your loc
 
 **Stack:** Phaser 3 · Node.js · Express · WebSocket
 
+## AWS deployment
+
+The current full backend has an independent deployment configuration: EC2 + Docker, CloudFront HTTPS/WebSocket access, persistent workspace data, and a generated website access password. It is a private single-user workspace. The public demo and per-user API connection versions are later work.
+
+Deployment is prepared; the live URL will be added after the AWS stack is created and verified. See the [AWS deployment guide](docs/AWS-DEPLOYMENT.md) for costs, console setup, checks and operation.
+
 ## Quick start / 快速开始
 
 Use Node.js 24 and install the CLI you want to use (`claude` or `codex`) separately.

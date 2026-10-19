@@ -17,6 +17,7 @@ const PORT = process.env.PORT || 3000;
 const AGENTS_DIR = path.join(os.homedir(), '.virtual-office', 'agents');
 
 const app = express();
+app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 app.use(express.static(path.join(__dirname, '../client'), {
   etag: false,
   lastModified: false,
@@ -40,6 +41,16 @@ app.post('/upload', express.raw({ type: '*/*', limit: '25mb' }), (req, res) => {
 
 const server = http.createServer(app);
 const wss = new ws.WebSocketServer({ server });
+// Keep hosted WebSocket connections active through the reverse proxy.
+const heartbeat = setInterval(() => {
+  for (const client of wss.clients) {
+    if (client.isAlive === false) { client.terminate(); continue; }
+    client.isAlive = false;
+    client.ping();
+  }
+}, 25000);
+heartbeat.unref();
+wss.on('close', () => clearInterval(heartbeat));
 
 function broadcastToClients(obj) {
   const data = JSON.stringify(obj);
@@ -146,6 +157,8 @@ function listAgentsWithSession(dir) {
 }
 
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   console.log('客户端已连接');
   ws.send(JSON.stringify({ type: 'agents_list', agents: listAgentsWithSession(AGENTS_DIR) }));
   if (latestUsage) ws.send(JSON.stringify({ type: 'usage', report: latestUsage })); // 立刻填充墙上用量牌
