@@ -22,7 +22,7 @@ async function verify(base, idleMs = 0) {
   const crossSite = await fetch(root, { headers: { origin: 'https://untrusted.example' } });
   assert.equal(crossSite.status, 403, 'Cross-site request must be blocked');
   await crossSite.arrayBuffer();
-  const socketUrl = new URL(root); socketUrl.protocol = root.protocol === 'https:' ? 'wss:' : 'ws:';
+  const socketUrl = new URL('ws', root); socketUrl.protocol = root.protocol === 'https:' ? 'wss:' : 'ws:';
   await new Promise((resolve, reject) => {
     const client = new WebSocket(socketUrl, { headers: { origin: 'https://untrusted.example' }, handshakeTimeout: 10000 });
     client.on('error', () => {});

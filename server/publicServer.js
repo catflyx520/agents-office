@@ -39,7 +39,7 @@ function createPublicServer(options = {}) {
     const host = req.headers.host;
     const allowed = [`https://${host}`, `http://${host}`];
     // A browser always supplies Origin; CLI/test clients may omit it.
-    if (req.url !== '/' || (req.headers.origin && !allowed.includes(req.headers.origin))) {
+    if (!['/', '/ws'].includes(req.url) || (req.headers.origin && !allowed.includes(req.headers.origin))) {
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return;
     }
     if (sessions.size >= 64) { socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n'); return; }

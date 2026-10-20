@@ -36,5 +36,7 @@ async function main() {
   assert.ok(finished, 'Deployment timed out');
   await verify(process.env.OFFICE_SITE_URL, 70000);
   console.log('Published and verified:', process.env.OFFICE_SITE_URL);
+  await verify('https://catfly.dev/agent-office/', 70000);
+  console.log('Published and verified:', 'https://catfly.dev/agent-office/');
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

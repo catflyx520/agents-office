@@ -4,8 +4,8 @@ const { defaultAgents } = require('../server/officeTask');
 const snapshot = (experience = 'live') => ({ experience, controlMode: 'auto', agents: defaultAgents().map(agent => ({ ...agent, modelProvider: 'claude', modelId: '' })), histories: {} });
 
 let office, base, sockets;
-async function connect() {
-  const socket = new WebSocket(base.replace('http:', 'ws:'));
+async function connect(path = '', options = {}) {
+  const socket = new WebSocket(base.replace('http:', 'ws:') + path, options);
   const events = [];
   socket.on('message', raw => events.push(JSON.parse(raw)));
   await new Promise((resolve, reject) => { socket.once('open', resolve); socket.once('error', reject); });
@@ -32,6 +32,12 @@ test('public HTML and health load without password; upload is rejected before pa
   const upload = await fetch(`${base}/upload?name=test.txt`, { method: 'POST', body: 'not saved' });
   expect(upload.status).toBe(410);
   expect(await upload.json()).toMatchObject({ code: 'UPLOADS_DISABLED' });
+});
+
+test('the dedicated WebSocket endpoint returns browser bootstrap with a matching Origin', async () => {
+  const a = await connect('/ws', { origin: base });
+  await until(() => a.events.some(event => event.type === 'office_bootstrap'));
+  expect(a.events.find(event => event.type === 'office_bootstrap')).toMatchObject({ browserOwned: true });
 });
 
 test('shop Demo automatically plays discussion, sample approval, parallel work and final reports', async () => {
@@ -90,8 +96,8 @@ test('removed API-key and filesystem messages are rejected', async () => {
   expect(a.events.some(e => e.type === 'chat_chunk')).toBe(false);
 });
 
-test('browser cross-origin WebSocket handshakes are rejected', async () => {
-  const socket = new WebSocket(base.replace('http:', 'ws:'), { origin: 'https://untrusted.example' });
+test.each(['/', '/ws'])('browser cross-origin WebSocket handshakes are rejected at %s', async endpoint => {
+  const socket = new WebSocket(base.replace('http:', 'ws:') + endpoint, { origin: 'https://untrusted.example' });
   await new Promise((resolve, reject) => {
     socket.on('error', () => {});
     socket.on('open', () => { socket.terminate(); reject(new Error('Cross-site socket opened')); });
