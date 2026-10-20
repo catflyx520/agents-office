@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --chown=root:root server ./server
 COPY --chown=root:root client ./client
+COPY --chown=root:root scripts/check-account-cli.cjs ./scripts/check-account-cli.cjs
 COPY docker-entrypoint.sh /usr/local/bin/office-entrypoint
 RUN chmod 755 /usr/local/bin/office-entrypoint
 

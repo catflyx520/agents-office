@@ -4,12 +4,14 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/publicServer.js",
-    "start:local": "node server/index.js",
+    "start:local": "node server/publicServer.js",
     "test": "jest",
     "check": "node scripts/check.mjs",
     "prepare:hosting": "node scripts/prepare-hosting.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.304",
+    "@openai/codex": "0.163.0",
     "chokidar": "^3.6.0",
     "dotenv": "^18.0.6",
     "express": "^4.19.2",

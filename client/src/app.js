@@ -16,6 +16,16 @@ const $ = (id) => document.getElementById(id);
 
 class Office {
   _refreshLanguage() {
+    const prompt = $('og-f-prompt');
+    // Only replace an unchanged built-in template, never the user's draft text.
+    if (this.editingId && this.editingId !== '__self' && prompt.dataset.defaultPrompt !== undefined
+      && prompt.value.trim() === prompt.dataset.defaultPrompt.trim()) {
+      const agent = this.byId[this.editingId];
+      if (agent?.systemPromptMode === 'default') {
+        prompt.value = this._systemPromptFor(agent);
+        prompt.dataset.defaultPrompt = prompt.value;
+      }
+    }
     this._renderHeader();
     this._renderPending();
     this._renderBoards();
@@ -24,7 +34,7 @@ class Office {
     if (this.usage) this._renderUsage();
     if (this.weather) this._onWeather(this.weather);
     this._renderWindows(new Date());
-    this.ws.send({ type: 'get_auth_status' });
+    this.ws.send({ type: 'get_auth_status', language: getLanguage() });
   }
   constructor() {
     this.ws = new WSClient(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`);
@@ -46,10 +56,10 @@ class Office {
     this.logLines = [];          // 日志台缓存的行（最多 LOG_MAX 行）
     this.consoleOpen = false;
     this.consoleH = this._loadConsoleH(); // 日志台高度（用户可拖动，记忆到 localStorage）
-    this.usage = null;           // 服务器推来的 token 用量报表
+    this.usage = null;           // 网页版从浏览器用量历史聚合；旧本地版接收服务器报表
     this.autoCompactK = 0;       // 自动压缩阈值（k token，0=关闭）
     this.compactLog = [];        // 压缩谱系（服务器推送）
-    this.usageSource = 'office'; // 用量明细当前看的来源：office | iterm
+    this.usageSource = 'office'; // Office 用量明细
     this.usageRank = 'total';    // 排行依据：today | week | total
 
     this._bindUI();
@@ -217,7 +227,10 @@ class Office {
     return out;
   }
 
-  _saveHistories() { if (this.hosted) return; try { localStorage.setItem(HIST_KEY, JSON.stringify(this.histories)); } catch {} }
+  _saveHistories() {
+    if (this.browserState?.enabled) return this.browserState.saveHistory();
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(this.histories)); } catch {}
+  }
   _loadPlayer() { try { return { x: 300, y: 430, name: 'YOU', accent: '#ff8c42', ...(JSON.parse(localStorage.getItem('vo_office_player')) || {}) }; } catch { return { x: 300, y: 430, name: 'YOU', accent: '#ff8c42' }; } }
   _savePlayer() { try { localStorage.setItem('vo_office_player', JSON.stringify(this.player)); } catch {} }
   _hist(id) { return (this.histories[id] = this.histories[id] || []); }
@@ -268,11 +281,11 @@ class Office {
     });
     this.ws.addEventListener('auth_state_changed', (e) => {
       this._renderAuthState(e.detail.provider, e.detail.state);
-      this._toast(tr("授权失效：请在「模型与登录」重新授权；使用 API key 时请检查 .env。"));
+      this._toast(tr("授权失效：请在「模型与登录」重新授权。"));
     });
     this.ws.addEventListener('switch_provider_result', (e) => {
       if (e.detail.success) {
-        this._toast(`${tr("✅ 已成功切换首选引擎为: ")}${e.detail.provider === 'codex' ? 'Codex' : 'Claude'}`);
+        this._toast(`${this.hosted ? (getLanguage() === 'zh' ? '✅ 新成员默认服务商：' : '✅ Default provider for new teammates: ') : tr("✅ 已成功切换首选引擎为: ")}${e.detail.provider === 'codex' ? 'GPT / Codex' : 'Claude'}`);
         this.ws.send({ type: 'get_auth_status' });
       } else {
         this._toast(tr("❌ 切换失败: ") + e.detail.error);
@@ -293,7 +306,7 @@ class Office {
     });
     this.ws.addEventListener('login_url', (e) => {
       if (!this.loginInProgress) return;
-      $('og-login-status').textContent = tr("👉 请点击下方链接在浏览器中授权：");
+      $('og-login-status').textContent = tr("👉 请点击下方链接，在新标签页中授权：");
       $('og-login-oauth-url').href = e.detail.url;
       $('og-login-link-box').style.display = 'block';
       $('og-login-code-box').style.display = 'flex';
@@ -341,10 +354,9 @@ class Office {
     const el = $(`og-status-${provider}`);
     const button = $(`og-btn-login-${provider}`);
     if (!el || !button) return;
-    el.textContent = state === 'invalid' ? tr("🔴 授权失效，请重新授权或检查 key")
+    el.textContent = state === 'invalid' ? tr("🔴 授权失效，请重新授权")
       : state === 'signed_in' ? tr("🟢 已登录（本机账号）")
-      : state === 'unverified' ? tr("🟡 已配置 API key，等待首次请求验证")
-      : tr("⚪ 未授权，请连接账号或配置 key");
+      : tr("⚪ 未授权，请连接账号");
     el.title = state === 'signed_in' ? tr("CLI 已确认本机登录状态；请求若返回认证错误，将提示重新授权。") : '';
     button.textContent = state === 'invalid' ? tr("重新授权") : state === 'signed_in' ? tr("重新登录") : tr("连接 / 授权");
   }
@@ -448,7 +460,7 @@ class Office {
   _onPlanPreview(d) {
     const mid = d.agentId || 'pm'; // 计划可能来自 PM，也可能来自其他管理者
     const lines = d.plan.tasks.map(t => `  · ${this._name(t.agent)}: ${t.task.slice(0, 50)}`).join('\n');
-    this._hist(mid).push({ role: 'assistant', text: `${tr("我建议这样拆分（先确认再执行）：\n")}${lines}`, isPlan: true, planAgentId: mid, ts: Date.now() });
+    this._hist(mid).push({ role: 'assistant', text: `${tr("我建议这样拆分（先确认再执行）：\n")}${lines}`, isPlan: true, plan: d.plan, planAgentId: mid, ts: Date.now() });
     this.pending[mid] = false;
     this._saveHistories();
     if (this.activeId === mid) this._renderChat();
@@ -457,6 +469,7 @@ class Office {
   _onAgentStatus(d) {
     if (d.status === 'working') { this.pending[d.agentId] = true; this._setStatus(d.agentId, 'working', d.label); }
     else if (d.status === 'done') { this.pending[d.agentId] = false; this._setStatus(d.agentId, 'done'); }
+    else if (d.status === 'idle') { this.pending[d.agentId] = false; this._setStatus(d.agentId, 'idle'); }
     if (d.agentId === this.activeId) this._renderChat();
   }
 
@@ -555,6 +568,7 @@ class Office {
   }
 
   _compactActive() {
+    if (this.browserCompact) { void this.browserCompact.start(this.activeId); return; }
     const a = this.byId[this.activeId];
     if (!a || !a.sessionId) { this._toast(tr("该同事还没有会话，无需压缩")); return; }
     if (this.pending[a.id]) { this._toast(`${a.name}${tr(" 正在工作中，等他忙完再压缩")}`); return; }
@@ -566,7 +580,7 @@ class Office {
   _onCompactStatus(d) {
     const id = d.agentId;
     const name = this._name(id);
-    const push = (text) => { this._hist(id).push({ role: 'assistant', text, ts: Date.now(), sessionId: null }); };
+    const push = (text) => { this._hist(id).push({ role: 'assistant', text, contextControl: 'compact', ts: Date.now(), sessionId: null }); };
     if (d.stage === 'summarizing') push(d.auto ? tr("🗜️ 会话累计用量超过阈值，自动压缩中…（正在总结旧会话）") : tr("🗜️ 压缩中…（正在总结旧会话）"));
     else if (d.stage === 'seeding') push(tr("🗜️ 摘要完成，正在载入全新会话…"));
     else if (d.stage === 'done') {
@@ -638,12 +652,13 @@ class Office {
   _renderCompactLog() {
     const list = $('og-compact-log-list');
     const log = [...this.compactLog].reverse(); // 最新在前
-    if (!log.length) { list.innerHTML = tr("<div style=\"font-size:14px; color:#a8825c;\">还没有压缩记录。聊天框顶部的 🗜️ 压缩按钮可手动压缩，或在顶部设置自动压缩阈值。</div>"); return; }
+    if (!log.length) { list.textContent = getLanguage() === 'zh' ? '还没有压缩记录。聊天框顶部的 🗜️ 按钮可手动压缩，摘要和记录保存在浏览器 localStorage。' : 'No compact history yet. Use 🗜️ above the chat; summaries and records are saved in browser localStorage.'; return; }
+    const escape = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
     const p = n => String(n).padStart(2, '0');
     list.innerHTML = log.map(e => {
       const d = new Date(e.ts);
       const when = `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-      const name = this._name(e.agentId);
+      const name = escape(this._name(e.agentId));
       const before = e.billableBefore != null ? this._fmtTok(e.billableBefore) : '?';
       return `<div style="margin-bottom:12px; background:#fff; border:2.5px solid #5a4636; border-radius:12px; box-shadow:2px 2px 0 #5a4636; overflow:hidden;">
         <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; flex-wrap:wrap;">
@@ -652,7 +667,7 @@ class Office {
           <span style="flex:1;"></span>
           <span style="font-size:12px; color:#bfa07a;">${when}</span>
         </div>
-        <div style="padding:0 14px 4px; font-size:11.5px; color:#bfa07a;">${(e.oldSid || '?').slice(0, 8)} → ${(e.newSid || '?').slice(0, 8)}${tr("</div>\n        <details style=\"border-top:2px dashed #f0d9b8;\">\n          <summary style=\"cursor:pointer; padding:8px 14px; font-size:12.5px; font-weight:600; color:#5fb0b7;\">📋 查看摘要（")}${e.summary ? e.summary.length : 0}${tr(" 字）</summary>\n          <div style=\"padding:4px 14px 12px; font-size:12.5px; color:#5a4636; line-height:1.65; white-space:pre-wrap;\">")}${e.summary || '（无）'}</div>
+        <div style="padding:0 14px 4px; font-size:11.5px; color:#bfa07a;">${escape((e.oldSid || '?').slice(0, 8))} → ${escape((e.newSid || '?').slice(0, 8))}${tr("</div>\n        <details style=\"border-top:2px dashed #f0d9b8;\">\n          <summary style=\"cursor:pointer; padding:8px 14px; font-size:12.5px; font-weight:600; color:#5fb0b7;\">📋 查看摘要（")}${e.summary ? e.summary.length : 0}${tr(" 字）</summary>\n          <div style=\"padding:4px 14px 12px; font-size:12.5px; color:#5a4636; line-height:1.65; white-space:pre-wrap;\">")}${escape(e.summary || '（无）')}</div>
         </details>
       </div>`;
     }).join('');
@@ -812,7 +827,7 @@ class Office {
     this.pending[mid] = true;
     this._saveHistories();
     this._renderChat();
-    this.ws.send({ type: 'confirm_plan', agentId: mid });
+    this.ws.send({ type: 'confirm_plan', agentId: mid, plan: m.plan, language: getLanguage() });
   }
   _cancelPlan(m) {
     if (this.hosted) this.ws.send({ type: 'cancel_plan' });
@@ -836,7 +851,7 @@ class Office {
     if (!text && !files.length) return;
 
     const currentSessionId = fresh ? null : (a.sessionId || null);
-    this._hist(a.id).push({ role: 'user', text: fresh ? `🆕 ${text}` : text, files: files.map(f => f.name), ts: Date.now(), sessionId: currentSessionId });
+    this._hist(a.id).push({ role: 'user', text: fresh ? `🆕 ${text}` : text, fresh, files: files.map(f => f.name), ts: Date.now(), sessionId: currentSessionId });
     input.value = '';
     this._autoGrow();
     this.attachments = [];
@@ -930,9 +945,11 @@ class Office {
       av.textContent = this._initials(a);
       const info = document.createElement('div');
       info.style.cssText = 'flex:1; min-width:0;';
-      info.innerHTML = `<div style="font-size:14px; font-weight:700; color:#5a4636;"></div><div style="font-size:11px; color:#a8825c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>`;
+      info.innerHTML = `<div style="font-size:14px; font-weight:700; color:#5a4636;"></div><div style="font-size:11px; color:#a8825c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div><div style="font-size:11px; color:#5b8580; overflow-wrap:anywhere;"></div>`;
       info.children[0].textContent = a.name;
       info.children[1].textContent = `${a.role || ''} · ${a.workDir || ''}`;
+      info.children[1].title = info.children[1].textContent;
+      info.children[2].textContent = this.modelPicker?.describe(a) || '';
       const open = document.createElement('div');
       open.style.cssText = 'cursor:pointer; background:#fde7c8; border:2px solid #5a4636; border-radius:9px; padding:5px 10px; font-size:11.5px; font-weight:600; color:#b9791a;';
       open.textContent = tr("对话");
@@ -947,6 +964,11 @@ class Office {
   }
 
   // ── 编辑 / 新增 / 删除 ────────────────────────────────────
+  _systemPromptFor(agent) {
+    return (agent?.systemPromptMode === 'default' ? agent.defaultSystemPrompts?.[getLanguage()] : null)
+      ?? agent?.systemPrompt ?? '';
+  }
+
   _openEdit(id) {
     this.editingId = id;
     const isSelf = id === '__self';
@@ -969,9 +991,10 @@ class Office {
     $('og-f-accent').value = (a && a.accent) || '#ff8c42';
     $('og-f-cwd').value = a ? (a.workDir || '') : '';
     $('og-f-tools').value = (a && a.tools ? a.tools.join(',') : 'Edit,Read,Bash');
-    $('og-f-model').value = (a && a.model) || '';
-    $('og-f-codex-model').value = (a && a.codexModel) || '';
-    $('og-f-prompt').value = a ? (a.systemPrompt || '') : '';
+    this.modelPicker?.open(a);
+    $('og-f-prompt').value = this._systemPromptFor(a);
+    delete $('og-f-prompt').dataset.defaultPrompt;
+    if (a?.systemPromptMode === 'default') $('og-f-prompt').dataset.defaultPrompt = $('og-f-prompt').value;
     $('og-edit-del').style.display = (a && a.id !== 'pm') ? '' : 'none'; // PM 不可删
     $('og-edit').style.display = 'flex';
   }
@@ -996,21 +1019,25 @@ class Office {
     const accent = $('og-f-accent').value;
     const workDir = $('og-f-cwd').value.trim();
     const tools = $('og-f-tools').value.split(',').map(s => s.trim()).filter(Boolean);
-    const model = $('og-f-model').value;
-    const codexModel = $('og-f-codex-model').value;
+    const choice = this.modelPicker?.selection();
+    if (!choice) return;
     const systemPrompt = $('og-f-prompt').value.trim();
-    if (!name || !role || !workDir) { this._toast(tr("请填写名字、角色和工作目录")); return; }
+    if (!name || !role || (!workDir && !this.browserFolders?.enabled)) { this._toast(tr("请填写名字、角色和工作目录")); return; }
 
     let config;
     const orig = this.editingId && this.byId[this.editingId];
     if (orig) {
-      config = { ...orig, name, role, accent, workDir, tools: tools.length ? tools : orig.tools, model: model || null, codexModel: codexModel || null, systemPrompt };
+      config = { ...orig, name, role, accent, workDir, tools: tools.length ? tools : orig.tools, ...choice, systemPrompt };
     } else {
       const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now();
-      config = { id, name, role, accent, workDir, tools: tools.length ? tools : ['Edit', 'Read', 'Bash'], model: model || null, codexModel: codexModel || null, avatar: null,
-        systemPrompt: systemPrompt || `${tr("你是 ")}${role}${tr("，负责 ")}${workDir}${tr(" 项目。收到任务后先读相关文件再动手，完成后简短汇报。")}` };
+      config = { id, name, role, accent, workDir, tools: tools.length ? tools : ['Edit', 'Read', 'Bash'], ...choice, avatar: null,
+        systemPrompt: systemPrompt || (this.hosted && !this.workspaceEnabled
+          ? `${tr("你是 ")}${role}${tr("。根据用户提供的上下文给出方案、代码建议和验证步骤，不编造已执行的操作。")}`
+          : `${tr("你是 ")}${role}${tr("，负责 ")}${workDir}${tr(" 项目。收到任务后先读相关文件再动手，完成后简短汇报。")}`) };
     }
-    this.ws.send({ type: 'add_agent', config });
+    if (!this.hosted) config[choice.modelProvider === 'codex' ? 'codexModel' : 'model'] = choice.modelId || null;
+    if (this.browserFolders?.enabled) this.browserFolders.apply(config);
+    if (this.ws.send({ type: 'add_agent', config, language: getLanguage() }) && this.hosted) this.modelPicker?.stage(config.id, choice);
     this._closeEdit();
   }
   _deleteEdit() {
@@ -1142,7 +1169,6 @@ class Office {
 
     // 墙上用量牌 + 明细
     $('og-board-office').onclick = () => this._openUsage('office');
-    $('og-board-iterm').onclick = () => this._openUsage('iterm');
     $('og-usage-close').onclick = () => { $('og-usage').style.display = 'none'; };
     $('og-usage').onclick = (e) => { if (e.target === $('og-usage')) $('og-usage').style.display = 'none'; };
 
@@ -1310,11 +1336,9 @@ class Office {
   }
 
   _renderBoards() {
-    const office = this.usage && this.usage.office, iterm = this.usage && this.usage.iterm;
+    const office = this.usage && this.usage.office;
     $('og-board-office-total').textContent = this._fmtTok(office ? office.total.billable : 0);
     $('og-board-office-today').textContent = this._fmtTok(office ? office.today.billable : 0);
-    $('og-board-iterm-total').textContent = this._fmtTok(iterm ? iterm.total.billable : 0);
-    $('og-board-iterm-today').textContent = this._fmtTok(iterm ? iterm.today.billable : 0);
   }
 
   _openUsage(src) {
@@ -1335,21 +1359,24 @@ class Office {
       inp, cc, cr,
       hit: denom ? (cr / denom * 100) : 0,
       reuse: cc ? (cr / cc) : 0,
+      missing: b.missing || {},
     };
   }
 
   _tierHtml(b, compact = false) {
     const t = this._tierStats(b);
-    if (!(t.inp + t.cc + t.cr)) return '';
+    if (!(t.inp + t.cc + t.cr) && !Object.keys(t.missing).length) return '';
     const fs = compact ? 11.5 : 12;
     const chip = (bg, fg, label, v, title) =>
-      `<span title="${title}" style="display:inline-flex; align-items:center; gap:2px; background:${bg}; border:1.5px solid #5a4636; border-radius:6px; padding:2px 7px; font-size:${fs}px; font-weight:700; color:${fg};">${label} ${this._fmtTok(v)}</span>`;
+      `<span title="${title}" style="display:inline-flex; align-items:center; gap:2px; background:${bg}; border:1.5px solid #5a4636; border-radius:6px; padding:2px 7px; font-size:${fs}px; font-weight:700; color:${fg};">${label} ${v === null ? '—' : this._fmtTok(v)}</span>`;
     const chips = [
-      chip('#ffe3e3', '#c0392b', tr("✍️ 纯输入"), t.inp, tr("没吃到缓存、全价重算的输入（1x）")),
-      chip('#fde7c8', '#b9791a', tr("📷 缓存写"), t.cc, tr("写入缓存（拍照），比全价略贵（1.25x）")),
-      chip('#e3f6e3', '#2e7d32', tr("📄 缓存读"), t.cr, tr("从缓存复用（贴照片），便宜 90%（0.1x）")),
+      chip('#ffe3e3', '#c0392b', tr("✍️ 纯输入"), t.missing.input ? null : t.inp, tr(this.hosted ? "服务商报告的非缓存输入；缓存字段缺失时按已报告输入统计" : "没吃到缓存、全价重算的输入（1x）")),
+      chip('#fde7c8', '#b9791a', tr("📷 缓存写"), t.missing.cacheCreate ? null : t.cc, tr(this.hosted ? "服务商报告的缓存写入 Tokens；未返回时显示 —" : "写入缓存（拍照），比全价略贵（1.25x）")),
+      chip('#e3f6e3', '#2e7d32', tr("📄 缓存读"), t.missing.cacheRead ? null : t.cr, tr(this.hosted ? "服务商报告的缓存读取 Tokens；未返回时显示 —" : "从缓存复用（贴照片），便宜 90%（0.1x）")),
     ].join('');
-    const metrics = `<span style="font-size:${fs}${tr("px; color:#a8825c; font-weight:600;\" title=\"命中率 = 缓存读 ÷ 全部输入；复用 = 缓存读 ÷ 缓存写（一张照片贴了几次）\">命中 ")}${t.hit.toFixed(0)}${tr("% · 复用 ")}${t.cc ? t.reuse.toFixed(1) + 'x' : '—'}</span>`;
+    const hit = t.missing.input || t.missing.cacheCreate || t.missing.cacheRead ? '—' : t.hit.toFixed(0) + '%';
+    const reuse = t.missing.cacheCreate || t.missing.cacheRead || !t.cc ? '—' : t.reuse.toFixed(1) + 'x';
+    const metrics = `<span style="font-size:${fs}${tr("px; color:#a8825c; font-weight:600;\" title=\"命中率 = 缓存读 ÷ 全部输入；复用 = 缓存读 ÷ 缓存写（一张照片贴了几次）\">命中 ")}${hit} · ${tr("复用 ")}${reuse}</span>`;
     return `<div style="margin-top:${compact ? 4 : 8}px; display:flex; flex-wrap:wrap; gap:5px; align-items:center; ${compact ? 'padding-left:14px;' : ''}">${chips}${metrics}</div>`;
   }
 
@@ -1394,7 +1421,7 @@ class Office {
       }
 
       c.innerHTML = `<div style="font-size:13px; color:#a8825c; font-weight:600;">${name}</div>
-        <div style="font-size:23px; font-weight:700; color:#5a4636; line-height:1.3;">${this._fmtTok(b.billable)}${tr("</div>\n        <div style=\"font-size:11px; color:#bfa07a; flex:1;\">输出 ")}${this._fmtTok(b.output)} · ${b.msgs}${tr(" 条</div>\n        ")}${this._tierHtml(b)}
+        <div style="font-size:23px; font-weight:700; color:#5a4636; line-height:1.3;">${this._fmtTok(b.billable)}${tr("</div>\n        <div style=\"font-size:11px; color:#bfa07a; flex:1;\">输出 ")}${b.missing?.output ? '—' : this._fmtTok(b.output)} · ${b.msgs}${tr(" 条</div>\n        ")}${this._tierHtml(b)}
         ${modelsHtml}`;
       stats.appendChild(c);
     });

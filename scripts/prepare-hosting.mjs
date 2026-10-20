@@ -12,7 +12,7 @@ for (const [token, replacement] of Object.entries({
 })) bootstrap = bootstrap.replaceAll(`__${token}__`, replacement);
 const template = {
   AWSTemplateFormatVersion: '2010-09-09',
-  Description: 'Agents Office EC2 and CloudFront host. Public Demo and visitor-owned AI API modes are activated by the publishing workflow. No provider API keys included.',
+  Description: 'Agents Office EC2 and CloudFront host. Public Demo and visitor account sign-in are activated by the publishing workflow. No provider credentials included.',
   Parameters: {
     ReleaseCommit: { Type: 'String', AllowedPattern: '[a-f0-9]{40}', Description: 'Full 40-character reviewed Git commit from catflyx520/agents-office.' },
     InstanceType: { Type: 'String', Default: 't4g.small', AllowedValues: ['t4g.micro', 't4g.small', 't4g.medium'], Description: '2 GiB initially, as selected by the owner.' },

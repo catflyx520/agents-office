@@ -4,22 +4,20 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 #og-experience { flex: none; padding: 12px 18px; background: #fff8ee; border-bottom: 3px solid #f0d9b8; }
 .experience-top { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
 .experience-tabs { display: flex; gap: 4px; background: #fde7c8; padding: 3px; border: 2px solid #5a4636; border-radius: 12px; }
-#og-experience button, .api-dialog button { cursor: pointer; border: 2px solid #5a4636; border-radius: 8px; padding: 7px 12px; color: #5a4636; background: #fff; font-weight: 600; }
-#og-experience button[aria-pressed=true], #og-demo-run, #og-api-connect { color: white; background: #ce5b16; }
+#og-experience button { cursor: pointer; border: 2px solid #5a4636; border-radius: 8px; padding: 7px 12px; color: #5a4636; background: #fff; font-weight: 600; }
+#og-experience button[aria-pressed=true], #og-demo-run { color: white; background: #ce5b16; }
 #og-connection-label { font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 #og-mode-description { font-size: 12px; line-height: 1.5; margin: 8px 0 3px; max-width: 1100px; }
+#og-demo-guide { font-size: 12px; line-height: 1.6; white-space: pre-wrap; max-width: 1100px; margin: 8px 0; padding: 8px 12px; background: #fff; border-left: 3px solid #ce5b16; border-radius: 4px; }
+#og-demo-run:disabled { opacity: .6; cursor: wait; }
+.hosted-office .og-bubble-bot table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; white-space: normal; }
+.hosted-office .og-bubble-bot th, .hosted-office .og-bubble-bot td { padding: 6px 8px; border: 1px solid #f0d9b8; text-align: left; }
 #og-upload-note { font-size: 11px; color: #876042; margin: 3px 0 0; }
 #og-upload-btn:disabled { opacity: .55; cursor: not-allowed; }
-.api-overlay { position: absolute; inset: 0; z-index: 90; background: #5a463680; display: flex; align-items: center; justify-content: center; padding: 18px; }
-.api-dialog { background: #fff8ee; border: 3px solid #5a4636; border-radius: 18px; padding: 22px; box-shadow: 4px 5px 0 #5a4636; width: min(100%, 510px); max-height: 92dvh; overflow: auto; }
-.api-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
-.api-heading h2 { font-size: 20px; margin: 0; }
-.api-dialog p { font-size: 12px; line-height: 1.6; }
-.api-dialog label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 600; margin: 14px 0; }
-.api-dialog input, .api-dialog select { min-width: 0; padding: 10px; background: white; color: #5a4636; border: 2px solid #5a4636; border-radius: 8px; }
-.api-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.api-dialog button:disabled { opacity: .5; cursor: not-allowed; }
-.hosted-office #og-compact-btn, .hosted-office #og-board-iterm { display: none !important; }
+.project-folder-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.project-folder-controls input { flex: 1; min-width: 140px; }
+.project-folder-controls button { margin-top: 5px; padding: 8px 10px; background: #fff8e0; color: #5a4636; border: 2px solid #5a4636; border-radius: 9px; cursor: pointer; }
+#og-folder-note { font-size: 11px; line-height: 1.5; font-weight: 400; margin: 6px 0 0; }
 .hosted-office #og-layout > div:last-child { width: clamp(410px, 44vw, 620px) !important; }
 .hosted-office #og-console { right: clamp(410px, 44vw, 620px) !important; }
 @media (max-width: 1100px) {
@@ -33,5 +31,4 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .hosted-office #og-map { min-height: 430px; flex: none !important; }
   .hosted-office #og-layout > div:last-child { width: 100% !important; min-width: 0; min-height: 460px; height: 68dvh; flex: none !important; border-left: 0 !important; border-top: 3px solid #f0d9b8; }
   .hosted-office #og-console { position: fixed !important; right: 0 !important; max-height: 35dvh; }
-  .hosted-office .api-overlay { position: fixed; }
 }

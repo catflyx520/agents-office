@@ -141,7 +141,7 @@ function normalizePlan(plan, agents) {
 /**
  * 把任务列表按依赖关系分层（返回 wave 数组，每层可并行执行）
  */
-function scheduleTasks(tasks) {
+function scheduleTasks(tasks, report = console.error) {
   const waves = [];
   const done = new Set();
   let remaining = [...tasks];
@@ -150,7 +150,7 @@ function scheduleTasks(tasks) {
     const wave = remaining.filter(t => !t.waitFor || done.has(t.waitFor));
     if (wave.length === 0) {
       if (remaining.length > 0) {
-        console.error('[pmOrchestrator] scheduleTasks: unresolvable dependencies, dropping tasks:', remaining.map(t => t.agent));
+        report('[pmOrchestrator] scheduleTasks: unresolvable dependencies, dropping tasks:', remaining.map(t => t.agent));
       }
       break; // 防止循环依赖死锁
     }

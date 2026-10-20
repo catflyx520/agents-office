@@ -4,7 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The default `npm start` now runs `server/publicServer.js`: public Demo and per-connection visitor API modes. See `server/hostedSession.js` and `server/providerApi.js`. No public path invokes the original CLI runner, shared state or filesystem. Uploads are disabled. `npm run start:local` starts the original trusted single-user version described below; keep the two runtimes separate.
+`npm start` and `npm run start:local` both run `server/publicServer.js`. Local binds to loopback; production binds to all interfaces. Visitor data is owned by the browser: real chat in `vo_office_history`, Demo chat separately, teammate settings in `vo_office_settings_v1`, pending plans in `vo_office_plan_v1`, model choices/usage and OAuth credentials in their existing localStorage keys. `client/src/browserState.js` handles settings locally and attaches the needed history/settings snapshot to each AI request. Never reintroduce a server recovery cookie, 24-hour workspace cache, account-presence map, cross-request chat map or pending-plan closure. The router in `server/hostedSession.js` holds only active request/login/refresh operations; `server/officeTask.js` owns one request's temporary data and releases it after cleanup. Browser refresh cancels unfinished work and restores saved data from the browser. Do not claim this has been functionally tested: the owner requests manual testing; this change has static checks only.
+
+The original Models & sign-in modal, normal new-tab authorization link and no-API-key choice remain. `server/browserAuth.js` performs temporary OAuth/refresh exchanges, returns tokens to the owning browser, and cleans pending state. Inference uses official CLIs with the matching browser token, one isolated temporary runtime per call, session persistence disabled and no credential cache. Per-user Console inspection events are sent only to the browser; backend/proxy request logs must not record visitor data. Cleanup failures must be reported rather than described as successful data release.
+
+Project folders remain on the visitor's computer: localStorage stores names/IDs, IndexedDB stores handles, browser permission is checked again on reload. `server/browserWorkspace.js` forwards only List/Read/Write/Edit through a temporary authenticated MCP bridge for the current call. Native filesystem/shell tools remain disabled; no visitor project is staged or used as server cwd. Role prompts follow the chosen UI language unless customized. Live Logs opens by default. Demo is fully scripted and does not invoke AI/file tools. Preserve these behaviors unless the user requests a change.
+
+## Legacy source reference (not the npm/AWS website runtime)
+
+The remaining architecture notes describe the retained older single-user implementation. It writes local files and is not covered by the browser-only storage contract. Do not route npm or AWS entry points back to it.
 
 "Virtual Office" — a 2D pixel-art game (Phaser 3) where each on-screen NPC is a real Claude Code agent. The player walks up to an NPC to chat with that agent, or talks to the **PM** agent which decomposes a request into tasks, delegates them to other agents (visualized as the PM walking over and handing off work), and runs them as actual `claude` CLI subprocesses against real project directories.
 
@@ -13,8 +21,8 @@ UI strings and agent system prompts are in Chinese; code and identifiers are in 
 ## Commands
 
 ```bash
-npm start        # public Demo + visitor API server on :3000
-npm run start:local # original trusted local CLI workspace
+npm start        # request-only backend on :3000; browser-owned visitor data
+npm run start:local # alias for the same request-only backend
 npm test         # run all Jest tests
 npx jest tests/pmOrchestrator.test.js          # single test file
 npx jest -t "scheduleTasks"                    # single test by name

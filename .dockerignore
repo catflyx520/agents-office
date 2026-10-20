@@ -7,5 +7,6 @@ artifacts
 tests
 docs
 deployment
-scripts
+scripts/*
+!scripts/check-account-cli.cjs
 *.log

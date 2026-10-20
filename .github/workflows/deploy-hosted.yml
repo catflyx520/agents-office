@@ -31,6 +31,8 @@ jobs:
       - name: Build the public ARM64 application
         run: |
           docker build -t agents-office:ci .
+      - name: Verify official account CLIs with free local fixtures
+        run: docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges:true --memory 1400m --pids-limit 256 --tmpfs /tmp:rw,size=256m --tmpfs /home/node:rw,uid=1000,gid=1000 --entrypoint node agents-office:ci scripts/check-account-cli.cjs
       - name: Verify public modes and proxy without paid provider calls
         run: |
           docker network create office-ci

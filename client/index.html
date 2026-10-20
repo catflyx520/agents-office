@@ -274,17 +274,12 @@
               <div id="og-weather-temp" style="font-size:22px; font-weight:700; color:#e8a33d; line-height:1.2;">—</div>
               <div id="og-weather-desc" style="font-size:11px; color:#a8825c;">—</div>
             </div>
-            <!-- 用量牌：两块左右排，中间有 gap（整体算一个 div）-->
+            <!-- Office 用量牌 -->
             <div id="og-usage-boards" style="flex:none; display:flex; gap:10px;">
               <div id="og-board-office" title="点击查看用量明细" style="cursor:pointer; width:148px; background:#fff8ee; border:3px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:9px 13px;">
                 <div style="font-size:13.5px; font-weight:700; color:#5a4636;">🏢 办公室</div>
                 <div id="og-board-office-total" style="font-size:22px; font-weight:700; color:#d9694a; line-height:1.2;">—</div>
                 <div style="font-size:11px; color:#a8825c;">累计 · 今日 <b id="og-board-office-today">—</b></div>
-              </div>
-              <div id="og-board-iterm" title="点击查看用量明细" style="cursor:pointer; width:148px; background:#fff8ee; border:3px solid #5a4636; border-radius:12px; box-shadow:2px 3px 0 #5a4636; padding:9px 13px;">
-                <div style="font-size:13.5px; font-weight:700; color:#5a4636;">💻 iTerm</div>
-                <div id="og-board-iterm-total" style="font-size:22px; font-weight:700; color:#3f8f96; line-height:1.2;">—</div>
-                <div style="font-size:11px; color:#a8825c;">累计 · 今日 <b id="og-board-iterm-today">—</b></div>
               </div>
             </div>
             <!-- 操作牌 -->
@@ -382,6 +377,7 @@
         <div style="flex:1;">
           <div id="og-active-name" style="font-size:15px; font-weight:700; color:#5a4636;">选择一位同事</div>
           <div id="og-active-role" style="font-size:11px; color:#a8825c;">走近并按 E 开始对话</div>
+          <div id="og-active-model" style="font-size:11px; color:#5b8580; line-height:1.5; overflow-wrap:anywhere;"></div>
         </div>
         <div id="og-active-session" style="display:none; font-size:12.5px; font-weight:600; color:#a8825c; background:#fff; border:2px solid #5a4636; border-radius:7px; padding:3px 10px; margin-right:8px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default;">—</div>
         <div id="og-compact-progress" title="当前会话累计计费 / 自动压缩阈值" style="display:none; flex-direction:column; gap:2px; margin-right:8px; width:76px;">
@@ -413,8 +409,8 @@
 
   </div><!-- /flex wrapper -->
 
-  <!-- ===== 日志台（停靠左下方，宽度只到聊天框左缘，不遮挡聊天；可拖上边缘调高度；默认隐藏）===== -->
-  <div id="og-console" style="display:none; position:absolute; left:0; right:690px; bottom:0; height:252px; background:#241c14; border-top:3px solid #5a4636; border-right:3px solid #5a4636; flex-direction:column; z-index:50;">
+  <!-- ===== 日志台（停靠左下方，宽度只到聊天框左缘，不遮挡聊天；可拖上边缘调高度；默认展开）===== -->
+  <div id="og-console" style="display:flex; position:absolute; left:0; right:690px; bottom:0; height:252px; background:#241c14; border-top:3px solid #5a4636; border-right:3px solid #5a4636; flex-direction:column; z-index:50;">
     <!-- 拖拽手柄：按住上边缘上下拖动改变高度 -->
     <div id="og-console-resize" title="拖动调整高度" style="position:absolute; left:0; right:0; top:-3px; height:9px; cursor:ns-resize; z-index:3;"></div>
     <div style="flex:none; display:flex; align-items:center; gap:10px; padding:7px 14px; background:#2e2418; border-bottom:2px solid #43331f;">
@@ -519,24 +515,23 @@
             </select>
           </label>
         </div>
-        <label id="og-f-row-cwd" style="font-size:12px; font-weight:600; color:#a8825c;">工作目录<input id="og-f-cwd" placeholder="~/projects/…" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;"></label>
+        <div id="og-f-row-cwd" style="font-size:12px; font-weight:600; color:#a8825c;">
+          <label for="og-f-cwd">项目目录（Project Folder）</label>
+          <div class="project-folder-controls">
+            <input id="og-f-cwd" placeholder="D:\projects\my-app" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;">
+            <button id="og-folder-pick" type="button" hidden>选择文件夹</button>
+            <button id="og-folder-clear" type="button" hidden>取消选择</button>
+          </div>
+          <p id="og-folder-note" hidden></p>
+          <input id="og-folder-files" type="file" webkitdirectory multiple hidden>
+        </div>
         <label id="og-f-row-tools" style="font-size:12px; font-weight:600; color:#a8825c;">工具(逗号分隔)<input id="og-f-tools" placeholder="Edit,Read,Bash" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none;"></label>
-        <label id="og-f-row-model" style="font-size:12px; font-weight:600; color:#a8825c;">Claude 模型选择
-          <select id="og-f-model" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px; outline:none; background:#fff;">
-            <option value="">默认 (Sonnet)</option>
-            <option value="sonnet">Sonnet (性能均衡)</option>
-            <option value="opus">Opus (最强推理)</option>
-            <option value="haiku">Haiku (极速轻量)</option>
+        <label id="og-f-row-model" style="font-size:12px; font-weight:600; color:#a8825c;">
+          <span id="og-f-model-label">模型（每位成员只选择一个）</span>
+          <select id="og-f-agent-model" disabled style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px; outline:none; background:#fff;">
+            <option value="">正在加载模型列表…</option>
           </select>
-        </label>
-        <label id="og-f-row-codex-model" style="font-size:12px; font-weight:600; color:#a8825c;">Codex 模型选择
-          <select id="og-f-codex-model" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px; outline:none; background:#fff;">
-            <option value="">默认 (账号配置模型)</option>
-            <option value="gpt-4o">gpt-4o (性能强劲)</option>
-            <option value="gpt-4o-mini">gpt-4o-mini (经济极速)</option>
-            <option value="o1-mini">o1-mini (强逻辑推理)</option>
-            <option value="o3-mini">o3-mini (高级推理)</option>
-          </select>
+          <span id="og-f-model-note" style="display:block; margin-top:5px; font-size:11px; line-height:1.5;"></span>
         </label>
         <label id="og-f-row-prompt" style="font-size:12px; font-weight:600; color:#a8825c;">System Prompt<textarea id="og-f-prompt" rows="4" style="margin-top:5px; width:100%; font-family:'Fredoka'; font-size:13px; color:#5a4636; border:2.5px solid #5a4636; border-radius:10px; padding:8px 10px; outline:none; resize:vertical;"></textarea></label>
         <div style="display:flex; gap:10px; margin-top:4px;">
@@ -802,11 +797,11 @@
       </div>
       
       <div id="og-login-step-1" style="display:flex; flex-direction:column; gap:14px;">
-        <p style="font-size:12.5px; line-height:1.45; margin:0; color:#a8825c;">您可以选择当前使用的 Agent 后端模型，并在此管理它们的本地订阅登录状态。</p>
+        <p id="og-provider-description" style="font-size:12.5px; line-height:1.45; margin:0; color:#a8825c;">分别管理 Claude 和 GPT 的浏览器登录凭证。每位成员在「团队 → 编辑」选择自己的模型。</p>
         
         <!-- Active Provider Option -->
         <div style="display:flex; flex-direction:column; gap:6px;">
-          <div style="font-size:13px; font-weight:700; color:#5a4636;">首选模型服务商 (Active Engine):</div>
+          <div id="og-provider-default-label" style="font-size:13px; font-weight:700; color:#5a4636;">新成员默认服务商（已有成员独立选择）：</div>
           <div style="display:flex; gap:10px;">
             <label style="flex:1; cursor:pointer; display:flex; align-items:center; gap:8px; background:#fff; border:2.5px solid #5a4636; border-radius:12px; padding:10px 14px; box-shadow:2px 3px 0 #5a4636;">
               <input type="radio" name="og-active-provider" value="claude" style="width:16px; height:16px; cursor:pointer;">
@@ -864,7 +859,7 @@
         
         <div id="og-login-link-box" style="display:none; background:#fff; border:2px solid #5a4636; border-radius:10px; padding:10px; font-size:12px;">
           <div style="font-weight:700; color:#ff8c42; margin-bottom:4px;">第一步: 点击打开以下授权网页</div>
-          <a id="og-login-oauth-url" href="#" target="_blank" style="color:#5fb0b7; font-weight:700; text-decoration:underline; word-break:break-all;">打开授权页面</a>
+          <a id="og-login-oauth-url" href="#" target="_blank" rel="noopener noreferrer" style="color:#5fb0b7; font-weight:700; text-decoration:underline; word-break:break-all;">打开授权页面（新标签页）</a>
         </div>
 
         <div id="og-login-code-box" style="display:none; flex-direction:column; gap:6px;">
