@@ -15,7 +15,9 @@ A visual office for AI teamwork. Explore a scripted Demo, or connect your AI thr
 
 Project folders belong to the visitor's browser, not the server. The app does not run the AI CLI inside a visitor-supplied server path or stage a server copy of the project. Upload controls remain disabled, and `/upload` rejects requests before reading their bodies. File operations for an explicitly selected project use the browser connection described below.
 
-**Live Demo:** [Agents Office](https://d396om3j4lmtlb.cloudfront.net). The browser-owned storage release was [deployed and verified](https://github.com/catflyx520/agents-office/actions/runs/39505101144) on October 20, 2026 (America/Los_Angeles), application commit `d22cd8dce1e2ead4be0c2bacb65034e8379dda78`. It opens in Demo; visitors can switch to Live mode to connect their AI. See the [deployment guide](docs/AWS-DEPLOYMENT.md) for operation and checks.
+**Live Demo:** [Agents Office](https://catfly.dev/agent-office/). The dedicated WebSocket endpoint release was [deployed and verified](https://github.com/catflyx520/agents-office/actions/runs/39516577540) on October 20, 2026 (America/Los_Angeles), application commit `4163d32ae41c9c0762dcf12a791012de10289d59`. The [original CloudFront address](https://d396om3j4lmtlb.cloudfront.net) remains available. It opens in Demo; visitors can switch to Live mode to connect their AI. See the [deployment guide](docs/AWS-DEPLOYMENT.md) for operation and checks.
+
+The browser connects to `ws` relative to the page directory: `/agent-office/ws` on the shared domain, or `/ws` at the original root address. CloudFront removes the project prefix before forwarding to the backend's `/ws` endpoint. The old root WebSocket endpoint remains compatible. Publishing verifies both addresses, including Demo, cross-site rejection and a 70-second idle heartbeat.
 
 ## Run locally
 
