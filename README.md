@@ -15,7 +15,7 @@ A visual office for AI teamwork. Explore a scripted Demo, or connect your AI thr
 
 Project folders belong to the visitor's browser, not the server. The app does not run the AI CLI inside a visitor-supplied server path or stage a server copy of the project. Upload controls remain disabled, and `/upload` rejects requests before reading their bodies. File operations for an explicitly selected project use the browser connection described below.
 
-**Live Demo:** [Agents Office](https://d396om3j4lmtlb.cloudfront.net). The password-free release was [deployed and verified](https://github.com/catflyx520/agents-office/actions/runs/39339228277) on October 19, 2026 (America/Los_Angeles). It opens in Demo; visitors can switch to Live mode to connect their AI. See the [deployment guide](docs/AWS-DEPLOYMENT.md) for operation and checks.
+**Live Demo:** [Agents Office](https://d396om3j4lmtlb.cloudfront.net). The browser-owned storage release was [deployed and verified](https://github.com/catflyx520/agents-office/actions/runs/39505101144) on October 20, 2026 (America/Los_Angeles), application commit `d22cd8dce1e2ead4be0c2bacb65034e8379dda78`. It opens in Demo; visitors can switch to Live mode to connect their AI. See the [deployment guide](docs/AWS-DEPLOYMENT.md) for operation and checks.
 
 ## Run locally
 
@@ -74,7 +74,7 @@ Existing `vo_office_history` records are preserved. Sent messages and completed 
 
 For each real question, the browser flushes its current conversation to localStorage, reads the relevant recent messages (up to eight per teammate), excludes the just-saved current question to avoid duplication, and sends those messages with the current teammate settings. The backend appends the new question and applies the existing context limits. Fresh conversations do not send earlier thread history. The appropriate browser token is requested separately just before each AI call, including delegated work and the PM summary. Results stream back to the owning browser for local saving. Confirming a plan sends the browser's saved plan; the backend validates it again and retains no pending closure between requests.
 
-The application's request logs are not written on the backend. Both proxy templates have access logging off and suppress request error logging, which can contain callback URLs. These are local configuration changes only; no AWS configuration or old remote logs have been changed or deleted.
+The application's request logs are not written on the backend. Both proxy templates have access logging off and suppress request error logging, which can contain callback URLs. The October 20 release installs this proxy configuration on the existing host. Historical remote logs have not been deleted.
 
 ### Manual Compact
 
@@ -113,7 +113,7 @@ This is a custom browser-token integration, not a claim of provider approval for
 
 Inference disables CLI built-in filesystem/shell tools. Without a selected project, model tools remain disabled. With an authorized folder, only the per-request `browser_workspace` MCP server is exposed: Claude uses an empty built-in tool list and strict MCP config; Codex retains its disabled native tools and pinned catalogue, plus this explicit MCP connection. The loopback MCP endpoint uses a per-request capability and relays to the owning WebSocket/browser; it never opens project paths on the server. At most two official CLI processes run concurrently. Account login alone does not prove that a model request or paid usage has occurred. Official references: [Codex authentication](https://developers.openai.com/codex/auth/), [OpenAI Docs: app-server browser sign-in](https://developers.openai.com/codex/app-server/), [Claude Code CLI](https://code.claude.com/docs/en/cli-reference), [hosting unmodified Claude Code](https://code.claude.com/docs/en/legal-and-compliance#can-customers-offer-claude-code-in-their-products).
 
-**Local changes awaiting owner feedback:** request-only backend, browser-owned chats/settings/plans/OAuth credentials, per-teammate models, browser folder/file tools, usage history, editable prompts and automatic shop Demo are local changes and have not been published to AWS. The deployed site is an earlier release. Validation for this storage change is static only: JavaScript syntax, identifier scope, module references and diff whitespace. Existing session/public/smoke fixtures were updated for browser-supplied snapshots, per-call credentials and no server history recovery; they have not been executed. The owner will perform functional testing; no browser, automated functional or paid-model test was run.
+**Deployed October 20, 2026:** the request-only backend, browser-owned chats/settings/plans/OAuth credentials, per-teammate models, browser folder/file tools, usage history, editable prompts, automatic shop Demo, manual Compact and folder authorization guidance are included in application commit `d22cd8dce1e2ead4be0c2bacb65034e8379dda78`. The publishing workflow passed 55 tests across 11 suites, JavaScript syntax, CloudFormation/ShellCheck validation, the ARM64 image build and both official CLI loopback fixtures. Live checks passed public HTML/assets, upload rejection, scripted Demo, missing-account rejection, cross-site rejection and a 70-second idle WebSocket heartbeat. The served browser state, Compact and folder modules match this release. No browser UI, real-account authorization or paid-provider inference acceptance was performed by this deployment workflow.
 
 ## Local entry points
 
@@ -127,7 +127,7 @@ npm test -- --runInBand
 npm run prepare:hosting
 ```
 
-The ARM64 CI check builds the public Docker image and verifies the real Nginx/WebSocket path, Demo workflow, upload rejection and visitor connection state without making paid AI calls. CLI checks use isolated loopback fixtures. The current local sign-in changes await owner testing; no new paid-model acceptance is claimed.
+The ARM64 CI check builds the public Docker image and verifies the real Nginx/WebSocket path, Demo workflow, upload rejection and visitor connection state without making paid AI calls. CLI checks use isolated loopback fixtures. Real-account sign-in and inference remain owner-tested; deployment checks do not establish provider acceptance.
 
 **Stack:** native JavaScript / DOM / SVG · Node.js 24 · Express · WebSocket · EC2 Docker · CloudFront. No frontend compilation step is required.
 
