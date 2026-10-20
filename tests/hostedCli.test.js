@@ -12,15 +12,24 @@ function fakeSpawner() {
     Object.assign(proc, { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), pid: 123, exitCode: null });
     proc.finish = code => { proc.exitCode = code; proc.emit('close', code); };
     proc.kill = () => { queueMicrotask(() => proc.finish(143)); return true; };
-    calls.push({ bin, args, options, proc }); return proc;
+    calls.push({ bin, args, options: { ...options, env: { ...options.env } }, proc }); return proc;
   };
   return { spawn, calls };
 }
-function finishCodexLogin(call) {
-  call.proc.stdout.write(JSON.stringify({ id: 1, result: {} }) + '\n');
-  call.proc.stdout.write(JSON.stringify({ id: 2, result: { type: 'chatgpt', loginId: 'fixture-login', authUrl: 'https://auth.openai.com/oauth/authorize?state=fixture' } }) + '\n');
-  call.proc.stdout.write(JSON.stringify({ method: 'account/login/completed', params: { loginId: 'fixture-login', success: true } }) + '\n');
-  call.proc.stdout.write(JSON.stringify({ id: 3, result: { account: { type: 'chatgpt' } } }) + '\n');
+async function nextCall(spawner, index) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    if (spawner.calls[index]) return spawner.calls[index];
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  throw new Error('Fixture subprocess did not start');
+}
+const credentials = token => ({ cliProvider: 'codex', model: '', accessToken: token, expiresAt: Date.now() + 600000 });
+const replyArgs = token => ({ credentials: credentials(token), system: 'Chat only.',
+  messages: [{ role: 'user', content: 'hello' }], signal: new AbortController().signal, onText: jest.fn() });
+function finishReply(call) {
+  call.proc.stdout.write('{"type":"item.completed","item":{"type":"agent_message","text":"Hello 你好"}}\n');
+  call.proc.stdout.write('{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3}}\n');
+  call.proc.finish(0);
 }
 let root, clients;
 beforeEach(async () => { root = await fs.mkdtemp(path.join(os.tmpdir(), 'office-test-')); clients = []; });
@@ -46,48 +55,61 @@ test('subprocess environment never inherits owner credentials or login directori
   } finally { delete process.env.OPENAI_API_KEY; delete process.env.ANTHROPIC_API_KEY; delete process.env.AWS_SECRET_ACCESS_KEY; }
 });
 
-test('two visitors get distinct CLI homes and events; disconnect deletes only its own cache', async () => {
+test('two visitors get distinct request runtimes; cancellation deletes only its own runtime', async () => {
   const aEvents = [], bEvents = [], spawner = fakeSpawner();
   const a = client(aEvents, spawner), b = client(bEvents, spawner);
-  await a.start('codex'); await b.start('claude');
-  const [aCall, bCall] = spawner.calls;
+  const aReply = a.generate(replyArgs('fixture-visitor-a-token'));
+  const cancelled = expect(aReply).rejects.toMatchObject({ code: 'PROVIDER_FAILED' });
+  const aCall = await nextCall(spawner, 0);
+  const bReply = b.generate(replyArgs('fixture-visitor-b-token'));
+  const bCall = await nextCall(spawner, 1);
   expect(aCall.options.env.HOME).not.toBe(bCall.options.env.HOME);
-  expect(aCall.args).toContain('app-server');
-  expect(aCall.args).not.toContain('--device-auth');
+  expect(aCall.options.env.OFFICE_ACCESS_TOKEN).toBe('fixture-visitor-a-token');
+  expect(bCall.options.env.OFFICE_ACCESS_TOKEN).toBe('fixture-visitor-b-token');
   aCall.proc.stderr.write('private diagnostic token=never-relay-this');
-  aCall.proc.stdout.write('{"id":1,"result":{}}\n');
-  aCall.proc.stdout.write('{"id":2,"result":{"type":"chatgpt","loginId":"fixture-login","authUrl":"https://auth.openai.com/oauth/authorize?state=fixture"}}\n');
-  expect(aEvents.at(-1)).toMatchObject({ phase: 'waiting', url: 'https://auth.openai.com/oauth/authorize?state=fixture' });
-  expect(bEvents.some(e => e.phase === 'waiting')).toBe(false);
-  expect(JSON.stringify(aEvents)).not.toContain('never-relay-this');
-  aCall.proc.stdout.write('{"method":"account/login/completed","params":{"loginId":"fixture-login","success":true}}\n');
-  aCall.proc.stdout.write('{"id":3,"result":{"account":{"type":"chatgpt"}}}\n');
-  expect(aEvents.at(-1)).toMatchObject({ phase: 'connected', provider: 'codex' });
-  await a.clear();
+  await a.clear(); await cancelled;
   await expect(fs.stat(aCall.options.env.HOME)).rejects.toMatchObject({ code: 'ENOENT' });
   expect((await fs.stat(bCall.options.env.HOME)).isDirectory()).toBe(true);
-  bCall.proc.finish(1); await b.clear();
+  finishReply(bCall); await bReply;
+  expect(JSON.stringify([...aEvents, ...bEvents])).not.toContain('never-relay-this');
+  expect(await fs.readdir(root)).toEqual([]);
 });
 
 test('cancelled login cannot report a late successful authorization', async () => {
   const events = [], spawner = fakeSpawner(), account = client(events, spawner);
-  await account.start('codex'); const proc = spawner.calls[0].proc;
-  const clearing = account.clear(); proc.emit('close', 0); await clearing;
-  expect(events.some(e => e.phase === 'connected')).toBe(false);
+  const originalFetch = global.fetch;
+  let complete;
+  global.fetch = jest.fn(() => new Promise(resolve => { complete = resolve; }));
+  try {
+    await account.start('claude');
+    expect(events.at(-1)).toMatchObject({ phase: 'waiting', provider: 'claude' });
+    const pending = account.submit('fixture-authorization-code');
+    await account.clear();
+    complete({ ok: true, json: async () => ({ access_token: 'fixture-access-token-only', expires_in: 3600 }) });
+    await pending;
+    expect(events.some(e => e.phase === 'credentials')).toBe(false);
+    expect(spawner.calls).toHaveLength(0);
+    expect(await fs.readdir(root)).toEqual([]);
+  } finally { global.fetch = originalFetch; }
 });
 
-test('account replies use the matching private home, parse actual usage and never relay CLI diagnostics', async () => {
+test('account replies require a browser token, parse actual usage and delete the runtime without retaining credentials', async () => {
   const events = [], spawner = fakeSpawner(), account = client(events, spawner);
-  await account.start('codex'); const login = spawner.calls[0]; finishCodexLogin(login);
-  const onText = jest.fn();
-  const reply = account.generate({ credentials: { cliProvider: 'codex', model: '' }, system: 'Chat only.', messages: [{ role: 'user', content: 'hello' }], signal: new AbortController().signal, onText });
-  const inference = spawner.calls[1]; expect(inference.options.env.HOME).toBe(login.options.env.HOME);
+  const args = replyArgs('fixture-browser-access-token'), onCleanup = jest.fn();
+  const reply = account.generate({ ...args, onCleanup });
+  const inference = await nextCall(spawner, 0);
+  expect(inference.options.env.OFFICE_ACCESS_TOKEN).toBe('fixture-browser-access-token');
+  expect(inference.args).toContain('--ephemeral');
+  expect(await fs.readdir(path.join(inference.options.env.HOME, '.codex'))).toEqual([]);
+  expect(await fs.readdir(path.join(inference.options.env.HOME, '.claude'))).toEqual([]);
   inference.proc.stderr.write('private account details');
-  inference.proc.stdout.write('{"type":"item.completed","item":{"type":"agent_message","text":"Hello 你好"}}\n');
-  inference.proc.stdout.write('{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3}}\n');
-  inference.proc.finish(0);
+  finishReply(inference);
   expect(await reply).toMatchObject({ text: 'Hello 你好', usage: { input: 5, output: 3, cacheRead: 2, cacheCreate: null } });
-  expect(onText).toHaveBeenCalledWith('Hello 你好');
+  expect(args.onText).toHaveBeenCalledWith('Hello 你好');
+  expect(onCleanup).toHaveBeenCalledWith({ credentialFilePresent: false, runtimeDirectoryRemoved: true });
+  await expect(fs.stat(inference.options.env.HOME)).rejects.toMatchObject({ code: 'ENOENT' });
+  await expect(account.generate({ ...args, credentials: { cliProvider: 'codex', model: '' } })).rejects.toMatchObject({ code: 'AUTH_FAILED' });
+  expect(spawner.calls).toHaveLength(1);
   expect(JSON.stringify(events)).not.toContain('private account');
 });
 
