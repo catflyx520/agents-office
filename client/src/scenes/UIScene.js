@@ -182,7 +182,9 @@ export class UIScene extends Phaser.Scene {
   async _uploadFile(file) {
     const id = this._currentAgent?.id || 'unknown';
     try {
-      const res = await fetch(`/upload?agentId=${encodeURIComponent(id)}&name=${encodeURIComponent(file.name)}`, {
+      const uploadUrl = new URL('upload', document.baseURI);
+      uploadUrl.search = new URLSearchParams({ agentId: id, name: file.name }).toString();
+      const res = await fetch(uploadUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
         body: file,

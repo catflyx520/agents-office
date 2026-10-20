@@ -37,7 +37,9 @@ class Office {
     this.ws.send({ type: 'get_auth_status', language: getLanguage() });
   }
   constructor() {
-    this.ws = new WSClient(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`);
+    const socketUrl = new URL('./', document.baseURI);
+    socketUrl.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    this.ws = new WSClient(socketUrl.href);
     this.agents = [];           // 服务器下发的 agent 列表
     this.byId = {};             // id -> agent
     this.order = [];            // 展示顺序（PM 在最前）

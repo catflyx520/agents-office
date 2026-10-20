@@ -4,18 +4,19 @@ const { setTimeout: delay } = require('node:timers/promises');
 
 async function verify(base, idleMs = 0) {
   const root = new URL(base);
+  if (!root.pathname.endsWith('/')) root.pathname += '/';
   const response = await fetch(root, { redirect: 'manual' });
   assert.equal(response.status, 200, 'Public office must load without a website password');
   assert.match(await response.text(), /src\/app\.js/);
   for (const asset of ['/src/app.js', '/src/hosted.js', '/src/browserState.js', '/data/models.json', '/hosted.css']) {
-    const result = await fetch(new URL(asset, root)); assert.equal(result.status, 200, asset);
+    const result = await fetch(new URL(asset.slice(1), root)); assert.equal(result.status, 200, asset);
     await result.arrayBuffer();
   }
-  const health = await fetch(new URL('/healthz', root));
+  const health = await fetch(new URL('healthz', root));
   assert.equal(health.status, 200);
   assert.deepEqual(await health.json(), { status: 'ok', access: 'public', uploads: false, defaultMode: 'demo' });
   const origin = root.protocol === 'https:' ? root.origin : 'https://' + root.host;
-  const upload = await fetch(new URL('/upload', root), { method: 'POST', headers: { origin }, body: 'fixture-not-stored' });
+  const upload = await fetch(new URL('upload', root), { method: 'POST', headers: { origin }, body: 'fixture-not-stored' });
   assert.equal(upload.status, 410, 'Uploads must be disabled on the server');
   assert.equal((await upload.json()).code, 'UPLOADS_DISABLED');
   const crossSite = await fetch(root, { headers: { origin: 'https://untrusted.example' } });
