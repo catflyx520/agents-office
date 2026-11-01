@@ -158,6 +158,44 @@ export function setupBrowserFolders(office) {
       config.projectConnected = !!project?.connected; config.projectWritable = !!project?.writable;
       pendingSaves.set(config.id, { project });
     },
+    // Called from the 📎 click so a permission prompt still has the user's gesture.
+    async canSave(agentId) {
+      await ready;
+      if (!enabled || !live) { office._toast(text('请先切换到「正式模式」，再给同事添加文件。', 'Switch to Live mode to add files for a teammate.')); return false; }
+      const project = projects.get(agentId);
+      if (!project) { office._toast(text('请先在「团队 → 编辑这位成员」选择你电脑上的 Project Folder 并保存。', 'First choose a Project Folder on your computer in Team → Edit this teammate, then Save.')); return false; }
+      if (!project.handle) { office._toast(text('此浏览器只能只读访问该文件夹，无法保存文件。请使用 Chrome 或 Edge。', 'This browser has read-only folder access and cannot save files. Use Chrome or Edge.')); return false; }
+      if (!project.writable) {
+        try { await project.handle.requestPermission({ mode: 'readwrite' }); await permissions(project); } catch { /* Reported below. */ }
+        office._toast(project.writable
+          ? text('已授权读写，请再点一次 📎 选择文件。', 'Access granted. Click 📎 again to choose files.')
+          : text('未获得读写授权，无法保存文件。', 'Read/write access was not granted, so files cannot be saved.'));
+        return false;
+      }
+      return true;
+    },
+    // Copies files into <Project Folder>/uploads/ on this computer. Nothing is sent to the server.
+    async saveFiles(agentId, files) {
+      const project = projects.get(agentId), saved = [];
+      if (!project?.handle || !project.writable) return saved;
+      try {
+        const folder = await project.handle.getDirectoryHandle('uploads', { create: true });
+        for (const file of files) {
+          const dot = file.name.lastIndexOf('.'), stem = dot > 0 ? file.name.slice(0, dot) : file.name, ext = dot > 0 ? file.name.slice(dot) : '';
+          let name = file.name;
+          for (let n = 1; await folder.getFileHandle(name).then(() => true, () => false); n += 1) name = `${stem} (${n})${ext}`;
+          const writer = await (await folder.getFileHandle(name, { create: true })).createWritable();
+          try { await writer.write(file); await writer.close(); }
+          catch (error) { await writer.abort().catch(() => {}); throw error; }
+          saved.push(`uploads/${name}`);
+        }
+      } catch {
+        office._toast(text('保存文件失败，请检查文件夹授权。', 'Could not save the files. Check folder permissions.'));
+      }
+      if (saved.length) office._toast(text(`已保存 ${saved.length} 个文件到你电脑上的「${project.name}/uploads」，未上传到服务器。`,
+        `Saved ${saved.length} file(s) to "${project.name}/uploads" on your computer. Nothing was uploaded to the server.`));
+      return saved;
+    },
   };
 
   function segments(value, allowRoot = false) {

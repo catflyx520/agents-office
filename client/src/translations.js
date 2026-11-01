@@ -1,4 +1,8 @@
 export default {
+  "把文件保存到这位同事在你电脑上的 Project Folder（uploads/），不会上传到服务器": "Save files into this teammate's Project Folder on your computer (uploads/). Nothing is uploaded to the server",
+  "📎 添加文件": "📎 Add files",
+  "这是什么？": "What is this?",
+  "当前版本不支持添加文件。": "Adding files is not available in this version.",
   "复用 ": "Reuse ",
   "服务商报告的非缓存输入；缓存字段缺失时按已报告输入统计": "Provider-reported uncached input; when cache fields are absent, input is counted as reported",
   "服务商报告的缓存写入 Tokens；未返回时显示 —": "Provider-reported cache creation tokens; — means not reported",
@@ -34,7 +38,7 @@ export default {
   "☀️ 白天": "☀️ Day",
   "🌇 黄昏": "🌇 Dusk",
   "🌙 夜晚": "🌙 Night",
-  "小办公室": "Little Office",
+  "小办公室": "Agents Office",
   "授权失效：请在「模型与登录」重新授权。": "Authorization failed. Reconnect in “Models & sign-in”.",
   "✅ 已成功切换首选引擎为:": "✅ Preferred provider changed to:",
   "❌ 切换失败:": "❌ Could not switch:",

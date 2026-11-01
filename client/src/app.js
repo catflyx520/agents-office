@@ -57,7 +57,7 @@ class Office {
     this.nearId = null;
     this.logLines = [];          // 日志台缓存的行（最多 LOG_MAX 行）
     this.consoleOpen = false;
-    this.consoleH = this._loadConsoleH(); // 日志台高度（用户可拖动，记忆到 localStorage）
+    this.consolePct = this._loadConsolePct(); // 日志台占办公区高度的比例（用户可拖动，记忆到 localStorage）
     this.usage = null;           // 网页版从浏览器用量历史聚合；旧本地版接收服务器报表
     this.autoCompactK = 0;       // 自动压缩阈值（k token，0=关闭）
     this.compactLog = [];        // 压缩谱系（服务器推送）
@@ -260,9 +260,9 @@ class Office {
     });
     this.ws.addEventListener('weather', (e) => this._onWeather(e.detail.weather));
     this.ws.addEventListener('office_name', (e) => {
-      const name = e.detail.name || tr("小办公室");
+      const name = e.detail.name || 'Agents Office';
       $('og-office-name').textContent = name;
-      document.title = `${name} · Virtual Office`;
+      document.title = name === 'Agents Office' ? name : `${name} · Agents Office`;
     });
     this.ws.addEventListener('compact_log', (e) => {
       this.compactLog = e.detail.log || [];
@@ -361,6 +361,9 @@ class Office {
       : tr("⚪ 未授权，请连接账号");
     el.title = state === 'signed_in' ? tr("CLI 已确认本机登录状态；请求若返回认证错误，将提示重新授权。") : '';
     button.textContent = state === 'invalid' ? tr("重新授权") : state === 'signed_in' ? tr("重新登录") : tr("连接 / 授权");
+    // 没有凭证时没有可登出的东西，隐藏「登出」
+    const logout = $(`og-btn-logout-${provider}`);
+    if (logout) logout.hidden = state !== 'signed_in' && state !== 'invalid';
   }
 
   _onAgents(agents) {
@@ -879,8 +882,21 @@ class Office {
     this._renderChat();
   }
 
+  // 「添加文件」：文件只写进当前同事在本机授权的 Project Folder，不经过服务器
+  async _pickUploads() {
+    if (!this.browserFolders) { this._toast(tr('当前版本不支持添加文件。')); return; }
+    if (await this.browserFolders.canSave(this.activeId)) $('og-file').click();
+  }
+
   async _uploadFiles(fileList) {
-    this._toast(tr('为减少运行成本，暂不支持上传文件。'));
+    const files = [...(fileList || [])];
+    if (!files.length || !this.browserFolders) return;
+    const saved = await this.browserFolders.saveFiles(this.activeId, files);
+    if (!saved.length) return;
+    const input = $('og-input');
+    const note = (getLanguage() === 'zh' ? '（已存入项目文件夹：' : '(Saved to the project folder: ') + saved.join(', ') + (getLanguage() === 'zh' ? '）' : ')');
+    input.value = input.value ? `${input.value}\n${note}` : note;
+    this._autoGrow();
   }
 
   _renderPending() {
@@ -1153,7 +1169,9 @@ class Office {
     };
 
     $('og-team-btn').onclick = () => this._openTeam();
-    $('og-upload-btn').onclick = () => $('og-file').click();
+    $('og-upload-btn').onclick = () => this._pickUploads();
+    $('og-attach-btn').onclick = () => this._pickUploads();
+    $('og-attach-btn').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._pickUploads(); } };
     $('og-file').onchange = (e) => { this._uploadFiles(e.target.files); e.target.value = ''; };
     $('og-send').onclick = () => this._send();
 
@@ -1175,7 +1193,8 @@ class Office {
     $('og-usage').onclick = (e) => { if (e.target === $('og-usage')) $('og-usage').style.display = 'none'; };
 
     // 日志台
-    $('og-console').style.height = this.consoleH + 'px'; // 恢复记忆的高度
+    this._applyConsoleHeight(); // 按记忆的比例恢复高度
+    new ResizeObserver(() => this._applyConsoleHeight()).observe($('og-layout'));
     $('og-console-btn').onclick = () => this._toggleConsole();
     $('og-console-close').onclick = () => this._toggleConsole(false);
     $('og-console-clear').onclick = () => { this.logLines = []; $('og-console-body').innerHTML = ''; };
@@ -1269,18 +1288,17 @@ class Office {
     const el = $('og-console');
     if (!handle || !el) return;
     let startY = 0, startH = 0;
-    const clamp = (h) => Math.max(120, Math.min(window.innerHeight - 120, h));
     const onMove = (e) => {
-      const h = clamp(startH + (startY - e.clientY)); // 向上拖 → 更高
-      el.style.height = h + 'px';
-      this.consoleH = h;
+      const area = $('og-layout').clientHeight || window.innerHeight;
+      this.consolePct = this._clampConsolePct((startH + (startY - e.clientY)) / area); // 向上拖 → 更高
+      this._applyConsoleHeight();
       this._scrollConsole();
     };
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       document.body.style.userSelect = '';
-      this._saveConsoleH();
+      this._saveConsolePct();
     };
     handle.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -1292,8 +1310,17 @@ class Office {
     });
   }
 
-  _loadConsoleH() { const v = parseInt(localStorage.getItem('vo_console_h'), 10); return (v && v >= 120) ? v : 252; }
-  _saveConsoleH() { try { localStorage.setItem('vo_console_h', String(Math.round(this.consoleH))); } catch {} }
+  // 日志台高度 = 办公区高度 × 比例（20%–70%，默认 30%），窗口缩放时按比例跟随
+  _clampConsolePct(p) { return Math.max(0.2, Math.min(0.7, p)); }
+  _applyConsoleHeight() {
+    const area = $('og-layout')?.clientHeight;
+    if (area) $('og-console').style.height = Math.round(area * this.consolePct) + 'px';
+  }
+  _loadConsolePct() {
+    let v = NaN; try { v = parseFloat(localStorage.getItem('vo_console_h_pct')); } catch {}
+    return Number.isFinite(v) ? this._clampConsolePct(v) : 0.3;
+  }
+  _saveConsolePct() { try { localStorage.setItem('vo_console_h_pct', this.consolePct.toFixed(3)); } catch {} }
 
   _toast(msg) {
     let t = $('og-toast');

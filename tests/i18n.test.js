@@ -24,3 +24,8 @@ test('Chinese stays unchanged and unknown strings have a safe fallback', () => {
   expect(load('zh')('选择一位同事')).toBe('选择一位同事');
   expect(load('en')('example-project-123')).toBe('example-project-123');
 });
+
+test('interface defaults to English unless Chinese was chosen', () => {
+  expect(load(null)('选择一位同事')).not.toBe('选择一位同事');
+  expect(load('zh')('🔑 模型与登录')).toBe('🔑 模型与登录');
+});

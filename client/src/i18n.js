@@ -1,7 +1,8 @@
 import english from './translations.js';
 
-let language = 'zh';
-try { language = localStorage.getItem('vo_language') === 'en' ? 'en' : 'zh'; } catch { /* Storage unavailable. */ }
+// English unless the visitor explicitly chose Chinese.
+let language = 'en';
+try { language = localStorage.getItem('vo_language') === 'zh' ? 'zh' : 'en'; } catch { /* Storage unavailable. */ }
 export const getLanguage = () => language;
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const pattern = new RegExp(Object.keys(english).sort((a, b) => b.length - a.length).map(escapeRegex).join('|'), 'g');
