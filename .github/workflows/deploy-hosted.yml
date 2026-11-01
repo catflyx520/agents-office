@@ -1,5 +1,7 @@
 name: Check and deploy current application
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       deploy:
@@ -51,7 +53,8 @@ jobs:
           path: deployment/AgentsOfficeHosting.template.json
           if-no-files-found: error
   deploy:
-    if: inputs.deploy && github.ref == 'refs/heads/main'
+    # Every push to main deploys after checks pass; manual runs deploy only when the box is ticked.
+    if: (github.event_name == 'push' || inputs.deploy) && github.ref == 'refs/heads/main'
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 30
