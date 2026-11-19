@@ -2,6 +2,7 @@ import { getLanguage } from './i18n.js';
 
 const PREFIX = 'vo_ai_auth_v1:';
 const PROVIDERS = ['claude', 'codex'];
+const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const secret = value => typeof value === 'string' && value.length >= 16 && value.length <= 24000 && !/[\s\x00-\x1f]/.test(value);
 const text = (zh, en) => getLanguage() === 'zh' ? zh : en;
 
@@ -95,10 +96,11 @@ export function setupBrowserAuth(office) {
           hostId = `urn:uuid:${crypto.randomUUID()}`; localStorage.setItem('vo_ai_auth_host_v1', hostId);
         }
         trace('authorization_requested', message.provider, { requestId });
-        // Codex accepts a loopback callback. On hosted pages, the form also accepts
-        // the full callback URL if no Agents Office server is running on that device.
+        // OpenAI permits only a 127.0.0.1 callback for this flow. Locally this server answers
+        // it. A hosted page cannot, so it uses a random high port no local app answers: the
+        // tab stops on that address, unchanged, for the visitor to paste back.
         return originalSend({ ...message, requestId, hostId, clientId: previous?.hostId === hostId ? previous.clientId : null,
-          callbackPort: Number(location.port) || 3000 });
+          callbackPort: LOCAL ? Number(location.port) || 3000 : 49152 + Math.floor(Math.random() * 16384) });
       } catch (error) { notifyError(error); office.ws.dispatchEvent(Object.assign(new Event('login_close'), { detail: { code: 1 } })); return false; }
     }
     if (message.type === 'logout') {
@@ -200,9 +202,11 @@ export function setupBrowserAuth(office) {
     const input = document.getElementById('og-login-verification-code');
     input.placeholder = text('粘贴一次性授权码', 'Paste the one-time authorization code');
     if (!event.detail.manualCallback) return;
-    document.getElementById('og-login-status').textContent = text(
+    document.getElementById('og-login-status').textContent = LOCAL ? text(
       '请在新标签页完成授权。若最后跳转到 127.0.0.1 无法打开，复制地址栏完整 URL，粘贴到下方提交。',
-      'Authorize in a new tab. If the final 127.0.0.1 page cannot open, copy its complete address and submit it below.');
+      'Authorize in a new tab. If the final 127.0.0.1 page cannot open, copy its complete address and submit it below.') : text(
+      '请在新标签页完成授权。授权后浏览器会停在一个打不开的 127.0.0.1 页面，这是正常的：复制地址栏里的完整地址，粘贴到下方提交。',
+      'Authorize in the new tab. Afterwards the browser stops on a 127.0.0.1 page that cannot load. This is expected: copy the full address from the address bar and submit it below.');
     input.placeholder = text('粘贴完整授权回调 URL', 'Paste the complete authorization callback URL');
   });
   office.ws.addEventListener('login_close', event => {
