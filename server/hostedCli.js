@@ -110,7 +110,7 @@ function inferenceArgs(provider, model, system, workspace = null) {
       '-c', `mcp_servers.browser_workspace.http_headers.Authorization=${JSON.stringify(`Bearer ${workspace.token}`)}`] : []),
     ...(model ? ['--model', model] : []), '-'];
 }
-function createHostedCli(send, { spawnImpl = spawn, tempRoot = os.tmpdir(), loginTimeout = 180000 } = {}) {
+function createHostedCli(send, { spawnImpl = spawn, tempRoot = os.tmpdir(), loginTimeout = 600000 } = {}) {
   let current = 0, closed = false, login = null;
   const children = new Set();
   function terminate(proc) {

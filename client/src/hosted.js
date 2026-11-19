@@ -130,6 +130,7 @@ export function setupHostedOffice(office) {
     const phase = demoGuide?.phase || 'idle';
     const working = state.busy || demoGuide?.busy || ['discussion', 'confirmation', 'running'].includes(phase);
     const completed = demoGuide?.completedAgents?.length || 0;
+    const rounds = demoGuide?.totalRounds || 1, round = `${Math.min((demoGuide?.step || 0) + 1, rounds)}/${rounds}`;
     $('og-demo-run').disabled = !!working || office.ws.ws.readyState !== WebSocket.OPEN;
     $('og-demo-run').textContent = working
       ? phase === 'running'
@@ -249,9 +250,15 @@ export function setupHostedOffice(office) {
     state = { ...state, connected: false, verified: false }; office.pending = {}; office.streamMsg = {};
     office.loginInProgress = false; $('og-login-verification-code').value = '';
     draw();
-    $('og-connection-label').textContent = text('连接已断开 · 刷新以重新连接', 'Disconnected · refresh to reconnect');
+    $('og-connection-label').textContent = text('连接已断开 · 操作页面时自动重连', 'Disconnected · reconnects when you use the page');
     office._renderChat();
   });
+  // The server drops connections idle for 15 minutes, and restarts on each release.
+  // Chats and settings live in this browser, so reconnect when the visitor returns
+  // instead of asking for a refresh. An unattended tab stays disconnected.
+  const reconnect = () => { if (!document.hidden) office.ws.connect(); };
+  for (const name of ['pointermove', 'pointerdown', 'keydown', 'focus']) window.addEventListener(name, reconnect, { passive: true });
+  document.addEventListener('visibilitychange', reconnect);
   window.addEventListener('office-language', draw);
   office.ws.addEventListener('auth_status_result', draw);
   const originalHeader = office._renderHeader.bind(office);
